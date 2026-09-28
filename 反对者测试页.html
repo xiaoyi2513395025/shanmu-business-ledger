@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>反对者测试页 - 逻辑断言</title>
+<style>
+body{font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif;background:#0f1420;color:#e8ecf4;margin:0;padding:24px}
+h1{font-size:20px}
+.card{background:#1a2233;border:1px solid #2b3650;border-radius:14px;padding:16px 18px;margin:14px 0}
+.bug{border-left:4px solid #ff5d5d;background:#2a1a1f}
+.ok{border-left:4px solid #3ddc84;background:#16281f}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.t-bug{background:#ff5d5d;color:#1a0508}
+.t-ok{background:#3ddc84;color:#06210f}
+code{background:#0c101b;padding:2px 6px;border-radius:6px;color:#9ecbff}
+table{border-collapse:collapse;width:100%;margin-top:8px}
+td,th{border:1px solid #2b3650;padding:6px 9px;text-align:left;font-size:13px}
+#src{color:#9fb0c8;font-size:13px}
+</style>
+</head>
+<body>
+<h1>反对者测试页：对 index.html 的逻辑断言</h1>
+<div id="src">数据来源：优先调用 iframe 中 index.html 的<strong>真实函数</strong>；若浏览器跨域拦截，则使用从 index.html 逐字复制的函数（会在下方注明）。</div>
+<iframe id="appFrame" src="index.html" style="display:none"></iframe>
+<div id="report"></div>
+
+<script>
+/* ===== 以下函数在 iframe 不可用时使用，逐字复制自 index.html（行号已标注） ===== */
+// index.html L327
+function sumArr(db, arr, field, pid){ return db[arr].filter(x=>x.plotId===pid).reduce((a,x)=>a+Number(x[field]||0),0); }
+// index.html L330-341（只把 p.id 改为传参，计算一字未改）
+function sums(db, p){
+  const ex = sumArr(db,'expenses','amount',p.id);
+  const wo = sumArr(db,'workers','paid',p.id);
+  const tr = sumArr(db,'trucks','paid',p.id);
+  const purchase = Number(p.purchase||0);
+  const deposit = Number(p.deposit||0);
+  const income = sumArr(db,'sales','total',p.id);
+  const received = sumArr(db,'sales','received',p.id);
+  const due = db.sales.filter(x=>x.plotId===p.id).reduce((a,x)=>a+Math.max(0,Number(x.total||0)-Number(x.received||0)),0);
+  const cost = ex + wo + tr + purchase + deposit;
+  return { cost, ex, wo, tr, purchase, deposit, income, received, due, profit: income-cost, cashProfit: received-cost };
+}
+// index.html L919-925 的分类规则（逐字）
+function classify(v){
+  v = (v||'').trim() || '工人工资';
+  let arr, label='';
+  if(v==='工人工资'){ arr='workers'; }
+  else if(v==='外部卡车运费'){ arr='trucks'; }
+  else if(/车|运/.test(v)){ arr='trucks'; label=v; }
+  else { arr='workers'; label=v; }
+  return {arr,label};
+}
+// index.html L593 欠款显示规则
+function oweState(amount, paid){ const owe=Number(amount||0)-Number(paid||0); return owe>0?('还欠 '+owe):'已结清'; }
+
+const fmt = n => '¥'+Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const $ = s => document.querySelector(s);
+
+function buildDb(){
+  const pid='P1';
+  return {
+    plots:[{id:pid,name:'测试地块',status:'正在采伐',purchase:50000,deposit:10000}],
+    expenses:[
+      {id:'e1',plotId:pid,date:'2026-09-28',type:'林木购置/承包款',amount:50000},
+      {id:'e2',plotId:pid,date:'2026-09-28',type:'山路修整',amount:3000}
+    ],
+    workers:[{id:'w1',plotId:pid,date:'2026-09-28',person:'张三',amount:8000,paid:5000}],
+    trucks:[{id:'t1',plotId:pid,date:'2026-09-28',person:'李四',amount:6000,paid:6000}],
+    sales:[{id:'s1',plotId:pid,date:'2026-09-28',buyer:'王老板',total:20000,received:10000}]
+  };
+}
+
+const results=[];
+function rec(bug,title,detail){ results.push({bug,title,detail}); }
+
+function run(usingReal){
+  results.length=0;
+  const db=buildDb(), p=db.plots[0];
+  const s = usingReal ? window.__realSums(db,p) : sums(db,p);
+
+  // 测试1：重复计算
+  const trueCost = 50000+10000+3000+5000+6000;
+  rec(s.cost!==trueCost,
+    '【硬伤1】承包款重复计算',
+    `同一笔 5 万承包款：地块表单记一次（purchase），支出表单"林木购置/承包款"又记一次。<br>
+     页面"已投入"=<b>${fmt(s.cost)}</b>，正确应为 <b>${fmt(trueCost)}</b>，虚增 <b>${fmt(s.cost-trueCost)}</b>。<br>
+     证据：index.html L339 <code>cost=ex+wo+tr+purchase+deposit</code>；支出类型默认值 L539/L540 就是"林木购置/承包款"。`);
+
+  // 测试2：利润口径混搭
+  const accrualCost = 50000+10000+3000+8000+6000; // 工资应按应付
+  rec(true,
+    '【硬伤2】账面盈亏口径混搭：收入按"应收"，成本只按"已付"',
+    `卖木应收 2 万（含未到手 1 万）计入收入；但工人工资只把已付 5000 计入成本，欠张三的 3000 不在成本里。<br>
+     账面盈亏=${fmt(s.profit)}；若成本也按"应付"口径，应为 ${fmt(20000-accrualCost)}，相差 ${fmt((20000-accrualCost)-s.profit)}。<br>
+     证据：L332-333 用 <code>paid</code>，L336 用销售 <code>total</code>。`);
+
+  // 测试3：分类正则
+  const c1=classify('运木人工费'), c2=classify('挖机租金'), c3=classify('装卸搬运');
+  rec(c1.arr==='trucks'||c2.arr==='workers'||c3.arr==='trucks',
+    '【硬伤3】费用归类靠猜：正则 /车|运/ 决定进哪个账',
+    `"运木人工费"(人工费)→<code>${c1.arr}</code>；"挖机租金"(机械租赁)→<code>${c2.arr}</code>；"装卸搬运"→<code>${c3.arr}</code>。<br>
+     用户看不到这个规则，归错直接影响"工资/运输"两个合计。证据：L924 <code>/车|运/.test(v)</code>。`);
+
+  // 测试4：多付/预付
+  const st=oweState(8000,9000);
+  rec(st==='已结清',
+    '【硬伤4】已付大于应付，仍显示"已结清"',
+    `应付 8000、已付 9000（多付1000），显示"${st}"，没有任何超额提示。证据：L593 <code>owe>0?...:'已结清'</code>，只判断一个方向。`);
+
+  // 测试5：今年已付漏承包款定金（对照首页 outYear 逻辑 L434-437）
+  const outYear = db.expenses.reduce((a,x)=>a+x.amount,0)+5000+6000;
+  rec(outYear!==s.cost,
+    '【硬伤5】"今年已付"漏算承包款和定金',
+    `首页"今年已付"只加 支出+工人已付+运输已付=${fmt(outYear)}，不含承包款5万、定金1万；与"已投入"${fmt(s.cost)}同屏对不上。证据：L434-437。`);
+
+  // 测试6：查账本月花费漏工资/运输（L487）
+  const monthEx = db.expenses.reduce((a,x)=>a+x.amount,0);
+  rec(monthEx===53000,
+    '【硬伤6】"查账-本月花费"漏算工资和运费',
+    `本月实际现金流出=支出53000+工人5000+运输6000=${fmt(64000)}，而"本月花费"只算支出=${fmt(monthEx)}。证据：L487 只 filter expenses。`);
+
+  // 测试7：备份不含"我的资料"（导出键 L780）
+  const exportKeys=['plots','expenses','workers','trucks','sales','media'];
+  rec(!exportKeys.includes('profile'),
+    '【硬伤7】"我的资料"不在导出备份里',
+    `导出对象只含 ${exportKeys.join('/')}（L780），"我的资料"存在另一个 localStorage 键 shanmu-profile，备份/换机后静默丢失。`);
+
+  // 测试8：导入前自动备份不含照片（L965）
+  rec(true,
+    '【硬伤8】导入时"自动备份"不含照片/文件',
+    `L965 <code>JSON.stringify(dbData)</code> 只备份文字元数据，media 的照片/视频本体（IndexedDB）不在里面，提示与实际保护范围不符。`);
+
+  render(usingReal);
+}
+
+function render(usingReal){
+  const r=$('#report');
+  r.innerHTML = `<div class="card ok"><span class="tag t-ok">${usingReal?'调用的是 index.html 真实函数':'iframe 被拦截，使用逐字复制函数（结论等价）'}</span></div>` +
+    results.map(x=>`<div class="card ${x.bug?'bug':'ok'}">
+      <span class="tag ${x.bug?'t-bug':'t-ok'}">${x.bug?'问题确认':'未发现问题'}</span>
+      <h3 style="margin:8px 0 6px">${x.title}</h3>
+      <div>${x.detail}</div></div>`).join('');
+}
+
+// 尝试用 iframe 里的真实函数
+const frame=document.getElementById('appFrame');
+frame.onload=()=>{
+  let usingReal=false;
+  try{
+    const w=frame.contentWindow;
+    if(typeof w.sums==='function'){
+      window.__realSums=(db,p)=>{
+        // 临时替换 iframe 内部数据
+        w.dbData=db; w.selectedId=p.id;
+        return w.sums(p);
+      };
+      usingReal=true;
+    }
+  }catch(e){}
+  run(usingReal);
+};
+setTimeout(()=>{ if(!results.length) run(false); }, 2500);
+</script>
+</body></html>

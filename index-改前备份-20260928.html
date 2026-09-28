@@ -1,0 +1,1005 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>本地经营账本</title>
+<style>
+/* ============ 颜色变量（想改整体配色，就改这里 --brand 和 --brand-deep） ============ */
+:root{
+  --ink:#15352b;           /* 正文文字颜色 */
+  --muted:#71857b;         /* 次要文字颜色 */
+  --line:#d7e5dc;          /* 边框颜色 */
+  --brand:#16634c;         /* 【可改颜色】主色：按钮、选中标签、图标 */
+  --brand-deep:#0e4636;    /* 【可改颜色】主色深一档，做渐变收尾 */
+  --warn:#fff0c4;          /* 待收尾款高亮背景 */
+  --sm:13px;               /* 【可改字号】次要小字的统一字号，想要更大就调大 */
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:linear-gradient(135deg,#f7faf7 0,#e8f2eb 48%,#f5f8f5 100%);
+  color:var(--ink);
+  font:16px/1.5 system-ui,-apple-system,"Microsoft YaHei",sans-serif;
+  min-height:100vh;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0}
+.app{max-width:1100px;margin:auto;padding:22px 16px 48px}
+
+/* 顶部 */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{display:flex;gap:12px;align-items:center}
+.mark{width:48px;height:48px;border-radius:16px;background:linear-gradient(145deg,var(--brand),var(--brand-deep));color:#fff;display:grid;place-items:center;font-size:23px;box-shadow:0 12px 28px #17644c35;position:relative;overflow:hidden}
+.mark:after{content:"";position:absolute;inset:-50%;background:linear-gradient(110deg,transparent 40%,#ffffff55 50%,transparent 60%);animation:sheen 5s infinite}
+.title{font-weight:800;font-size:23px;letter-spacing:.3px}
+.subtitle{font-size:var(--sm);color:var(--muted)}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* 按钮 */
+.btn{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;padding:11px 15px;border-radius:12px;font-weight:700;box-shadow:0 7px 18px #1d6b5228;transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 11px 23px #1d6b5238}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:#ffffffbf;color:var(--brand);border:1px solid var(--line);box-shadow:none}
+
+/* 布局 */
+.grid{display:grid;grid-template-columns:1.05fr 1.95fr;gap:18px}
+.panel{padding:19px;animation:rise .5s ease both}
+.panel h2{font-size:18px;margin:0 0 12px}
+.panel h3{font-size:15px;margin:18px 0 8px}
+
+/* 统计卡片 */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:linear-gradient(145deg,#e7f6ec,#d8eee2);border:1px solid #d1eadb;border-radius:15px;padding:13px;transition:transform .2s}
+.stat:hover{transform:translateY(-3px)}
+.stat b{font-size:22px;display:block}
+.stat span{font-size:var(--sm);color:var(--muted)}
+
+/* 列表 */
+.list{display:grid;gap:9px;margin-top:12px}
+.item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fffffff0;display:flex;justify-content:space-between;gap:10px;align-items:center;transition:border-color .2s,transform .2s}
+.item:hover{transform:translateY(-1px);border-color:#9bcbb0}
+.item.active{border-color:var(--brand);box-shadow:0 0 0 3px #1d6b5218}
+.item-title{font-weight:700}
+.item-sub{font-size:var(--sm);color:var(--muted)}
+.item-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.icon-btn{background:#eaf5ed;color:var(--brand);border-radius:9px;padding:8px 10px;font-weight:700}
+
+/* 顶部标签页 */
+.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:14px}
+.tab{white-space:nowrap;background:#edf5ef;color:#28634e;padding:9px 12px;border-radius:10px;transition:.2s}
+.tab:hover{background:#d9eee1}
+.tab.on{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;box-shadow:0 5px 14px #1d6b5228}
+
+/* 表单 */
+.form{display:grid;gap:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field label{display:block;font-size:var(--sm);color:var(--muted);margin:0 0 4px}
+.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#fbfefb;color:var(--ink);outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px #1d6b5215}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.empty{padding:28px 10px;text-align:center;color:var(--muted)}
+.badge{display:inline-flex;padding:4px 8px;border-radius:999px;background:#e8f1eb;color:#2b6c54;font-size:var(--sm)}
+.due{background:var(--warn);color:#875b08;border-color:#f0d995}
+.notice{font-size:var(--sm);color:var(--muted);background:#f5f8f5;border-radius:10px;padding:10px}
+
+/* 备份提醒横幅 */
+.banner{display:flex;align-items:center;gap:10px;background:#fff8e6;border:1px solid #f0d995;color:#875b08;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+.banner .btn{margin-left:auto}
+
+/* 媒体 */
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.media{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#f7faf7}
+.media img,.media video{width:100%;height:110px;object-fit:cover;display:block}
+.media small{display:block;padding:6px 6px 2px;color:var(--muted)}
+
+/* 弹窗：改成普通浮层，不用 <dialog>，这样在微信/老浏览器里也能正常弹出 */
+.modal-wrap{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(13,36,28,.33);padding:13px}
+.modal-wrap.open{display:flex}
+.modal{background:#fff;border-radius:18px;width:min(560px,100%);max-height:88vh;overflow:auto;padding:20px;box-shadow:0 30px 80px #18352c38}
+.modal h2{margin-top:0}
+
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sheen{0%,65%{transform:translateX(-80%) rotate(15deg)}100%{transform:translateX(180%) rotate(15deg)}}
+
+/* 深色模式 */
+body.dark{--ink:#eaf5ed;--muted:#9bb0a5;--line:#2a4035;background:linear-gradient(135deg,#0e1815,#17251f 48%,#0d1713)}
+body.dark .btn.ghost{background:#1d2d26;color:#b9e4c9;border-color:#365142}
+body.dark .icon-btn{background:#1d2d26;color:#b9e4c9}
+body.dark .field input,body.dark .field select,body.dark .field textarea{background:#14211b;color:var(--ink)}
+body.dark .notice{background:#1d2d26}
+body.dark .tab{background:#20392d;color:#b9e4c9}
+body.dark .stat b{color:#eaf5ed}
+body.dark .stat span{color:#9bb0a5}
+body.dark .badge{background:#1e3a2e;color:#b9e4c9}
+body.dark .modal{background:#17251f;color:var(--ink)}
+body.dark .banner{background:#2a2a18;border-color:#5a4a1a;color:#e6c878}
+.media{transition:transform .2s}
+.media:hover{transform:translateY(-3px)}
+#ambient{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.72;display:block}
+
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}.top{align-items:flex-start;flex-direction:column}.top-actions{width:100%}.top-actions .btn{flex:1}}
+@media(max-width:460px){.app{padding:12px 10px 30px}.panel{padding:14px;border-radius:16px}.row{grid-template-columns:1fr}.stats{gap:6px}.stat{padding:9px}.stat b{font-size:18px}.btn{padding:10px 11px}.media-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+<style>
+/* ===== 玻璃拟态高级背景（随"背景开关"一起开/关） ===== */
+#bgLayer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(68px);opacity:.5;will-change:transform;transform:translateZ(0);animation:blobFloat 22s ease-in-out infinite}
+.b1{width:46vw;height:46vw;left:-12vw;top:-14vw;background:radial-gradient(circle at 32% 32%,#dcf3e5,#b9e6cd 62%,transparent 78%)}
+.b2{width:38vw;height:38vw;right:-10vw;top:3vw;background:radial-gradient(circle at 50% 50%,#e4eefb,#c9ddf2 62%,transparent 78%);animation-delay:-6s}
+.b3{width:36vw;height:36vw;left:16vw;bottom:-14vw;background:radial-gradient(circle at 50% 50%,#f7ecdf,#efd9c3 62%,transparent 78%);animation-delay:-11s}
+.b4{width:26vw;height:26vw;left:46vw;top:32vh;background:radial-gradient(circle at 50% 50%,#e2f1eb,#cfe6db 62%,transparent 78%);animation-delay:-15s}
+.grain{position:absolute;inset:0;opacity:.035;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes blobFloat{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(2.4vw,-2vw,0) scale(1.07)}}
+
+/* ===== 玻璃卡片：更透、更柔和、更圆 ===== */
+.panel{background:linear-gradient(160deg,rgba(255,255,255,.88),rgba(255,255,255,.62));border:1px solid rgba(255,255,255,.7);border-radius:26px;box-shadow:0 24px 60px -22px rgba(21,53,43,.22);-webkit-backdrop-filter:blur(20px) saturate(150%);backdrop-filter:blur(20px) saturate(150%)}
+.item{background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.55);border-radius:18px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.stat{border-radius:18px;border:1px solid rgba(255,255,255,.6);background:linear-gradient(145deg,rgba(255,255,255,.75),rgba(231,246,236,.55));box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+.btn{border-radius:14px;box-shadow:0 8px 20px -8px rgba(22,99,76,.5),inset 0 1px 0 rgba(255,255,255,.28)}
+.icon-btn{border-radius:10px}
+.tab{border-radius:12px}
+.field input,.field select,.field textarea{border-radius:13px}
+.notice{border-radius:13px}
+.media{border-radius:16px}
+.mark{border-radius:18px}
+
+/* 深色模式：光斑转暗、柔光 */
+body.dark .b1{background:radial-gradient(circle at 32% 32%,#1e3a2e,#163026 62%,transparent 78%);opacity:.4}
+body.dark .b2{background:radial-gradient(circle at 50% 50%,#1d3140,#15262f 62%,transparent 78%);opacity:.4}
+body.dark .b3{background:radial-gradient(circle at 50% 50%,#332b20,#251d15 62%,transparent 78%);opacity:.35}
+body.dark .b4{background:radial-gradient(circle at 50% 50%,#1e332a,#15241e 62%,transparent 78%);opacity:.35}
+body.dark .grain{opacity:.05;mix-blend-mode:screen}
+body.dark .panel{background:linear-gradient(160deg,rgba(23,37,31,.9),rgba(23,37,31,.64));border-color:rgba(255,255,255,.08)}
+body.dark .item{background:rgba(23,37,31,.66);border-color:rgba(255,255,255,.07)}
+body.dark .stat{background:linear-gradient(145deg,rgba(28,47,39,.72),rgba(22,36,30,.55));border-color:rgba(255,255,255,.07)}
+
+/* 文件卡片（合同、单据、PDF 等） */
+.file-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:110px;padding:8px;text-align:center;background:linear-gradient(160deg,rgba(255,255,255,.6),rgba(255,255,255,.3))}
+.file-ico{font-size:34px;line-height:1}
+.file-name{font-size:12px;font-weight:700;color:var(--ink);word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.file-tip{font-size:11px;color:var(--muted)}
+body.dark .file-card{background:linear-gradient(160deg,rgba(23,37,31,.7),rgba(23,37,31,.4))}
+</style>
+</head>
+<body>
+<!-- 玻璃拟态背景层（柔光圆斑 + 颗粒，随"背景开关"一起开/关） -->
+<div id="bgLayer" aria-hidden="true">
+  <span class="blob b1"></span>
+  <span class="blob b2"></span>
+  <span class="blob b3"></span>
+  <span class="blob b4"></span>
+  <span class="grain"></span>
+</div>
+<canvas id="ambient" aria-hidden="true"></canvas>
+<main class="app" style="position:relative;z-index:1">
+
+  <!-- 备份提醒横幅：太久没备份时自动出现 -->
+  <div id="backupBanner" class="banner" hidden>
+    <span id="backupBannerText">还没有备份过</span>
+    <button class="btn" onclick="exportBackup()">立即备份</button>
+    <button class="btn ghost" onclick="dismissBanner()">稍后再说</button>
+  </div>
+
+  <header class="top">
+    <div class="brand">
+      <button class="mark" id="aboutBtn" title="查看账本说明">账</button>
+      <div>
+        <div class="title">本地经营账本</div>
+        <div class="subtitle">收入、支出、欠款和项目利润，一眼看懂</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="moreBtn" title="打开管理设置">＋ 设置</button>
+    </div>
+  </header>
+
+  <section class="grid">
+    <aside class="panel">
+      <h2>我的地块</h2>
+      <div class="notice">每笔钱都先选地块，账目才不会混在一起。</div>
+      <div class="actions"><button class="btn" id="addPlotBtn">+ 新建地块</button></div>
+      <div class="list" id="plotList"></div>
+    </aside>
+    <section class="panel"><div id="main"></div></section>
+  </section>
+</main>
+
+<!-- 新建/修改地块 -->
+<div class="modal-wrap" id="plotDialog">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2 id="plotDialogTitle">新建地块</h2>
+    <form class="form" id="plotForm">
+      <div class="row">
+        <div class="field"><label>地块名称 *</label><input name="name" placeholder="例如：那马山一号" required></div>
+        <div class="field"><label>地点</label><input name="location" placeholder="村、屯或山名"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>签约日期</label><input type="date" name="date"></div>
+        <div class="field"><label>地块状态（可直接打字，或点右侧选）</label><input name="status" list="statusList" value="待开发" placeholder="例如：正在办采伐证">
+          <datalist id="statusList"><option value="待开发"></option><option value="待采伐"></option><option value="正在采伐"></option><option value="采伐完毕"></option></datalist>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>林木购置/承包款</label><input type="number" min="0" step="0.01" name="purchase" placeholder="元"></div>
+        <div class="field"><label>已付定金或押金</label><input type="number" min="0" step="0.01" name="deposit" placeholder="元"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>山主姓名</label><input name="owner" placeholder="选填"></div>
+        <div class="field"><label>合同编号</label><input name="contractNo" placeholder="选填"></div>
+      </div>
+      <div class="field"><label>合同/手续备注</label><textarea name="note" rows="3" placeholder="例如：尾款约定、许可证办理情况"></textarea></div>
+      <div class="actions"><button class="btn" type="submit">保存地块</button><button class="btn ghost" type="button" onclick="closeModal(plotDialog)">取消</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- 添加照片/视频 -->
+<div class="modal-wrap" id="mediaDialog">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>添加照片、视频或文件</h2>
+    <div class="notice">照片、视频和文件（合同、单据、PDF、Word 等）都只保存在这台设备的浏览器里，不会上传服务器。视频建议选短视频。</div>
+    <form class="form" id="mediaForm">
+      <div class="field"><label>选择照片、视频或文件</label><input type="file" name="file" required></div>
+      <div class="field"><label>说明</label><input name="note" placeholder="例如：装车现场、合同现场、砍伐进度"></div>
+      <div class="actions"><button class="btn" type="submit">保存到本地</button><button class="btn ghost" type="button" onclick="closeModal(mediaDialog)">取消</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- 更多设置 -->
+<div class="modal-wrap" id="moreDialog">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>更多设置</h2>
+    <div class="list">
+      <button class="item" id="themeBtn"><span>切换浅色 / 深色</span><span>◐</span></button>
+      <button class="item" id="paletteBtn"><span>调整强调颜色</span><span>●</span></button>
+      <button class="item" id="backgroundBtn"><span>背景开关</span><span id="bgState">动态</span></button>
+      <button class="item" id="exportBtn"><span>导出备份（含照片/文件）</span><span>↓</span></button>
+      <button class="item" id="importBtn"><span>导入备份</span><span>↑</span></button>
+      <button class="item" onclick="view='settings';closeModal(moreDialog);render()"><span>设置</span><span>→</span></button>
+    </div>
+    <input id="accentPicker" type="color" value="#16634c" hidden>
+    <input id="importFile" type="file" accept="application/json" hidden>
+    <div class="actions"><button class="btn ghost" type="button" onclick="closeModal(moreDialog)">关闭</button></div>
+  </div>
+</div>
+
+<!-- 关于 -->
+<div class="modal-wrap" id="aboutDialog">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>本地经营账本</h2>
+    <div class="notice">这是一个离线账本，帮助你记录项目收入、支出、欠款和利润。文字、照片、视频和文件都保存在本机浏览器，不上传服务器。</div>
+    <div class="list">
+      <div class="item"><span>版本</span><strong>1.1.0</strong></div>
+      <div class="item"><span>记录方式</span><strong>本地保存</strong></div>
+      <div class="item"><span>数据安全</span><strong>请定期导出备份</strong></div>
+    </div>
+    <div class="actions"><button class="btn ghost" type="button" onclick="closeModal(aboutDialog)">关闭</button></div>
+  </div>
+</div>
+
+<!-- 查看大图 / 播放视频 -->
+<div class="modal-wrap" id="mediaViewer">
+  <div class="modal" role="dialog" aria-modal="true" style="width:min(860px,100%)">
+    <div class="actions" style="margin:0 0 10px"><strong id="mediaViewerTitle">查看</strong><button class="btn ghost" type="button" onclick="closeViewer()">关闭</button></div>
+    <div id="mediaViewerBody"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   核心脚本 —— 每一处需要你改文案的地方，都标了【可改文字】。
+   ===================================================================== */
+
+/* ---------- 数据 ---------- */
+const KEY = 'shanmu-ledger-v1';
+let dbData = loadData();
+let selectedId = dbData.plots[0]?.id || null;
+let view = 'home';            // 当前页面
+let editingId = null;         // 正在编辑哪条记录（支出/工资/运输/销售）
+let editingKind = null;       // 正在编辑的记录属于哪个数组
+let editingPlotId = null;     // 正在编辑哪块地
+let workKind = 'worker';      // 记工资/运输时，预选哪种
+let idb = null;               // IndexedDB 连接
+
+const $ = s => document.querySelector(s);
+const money = n => '¥' + Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+// 本地日期（不再用 UTC，避免中国时区凌晨日期差一天）
+function today(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function id(){ return crypto.randomUUID ? crypto.randomUUID() : Date.now()+''+Math.random(); }
+function stamp(){ return new Date().toISOString(); }
+function esc(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// 安全读取数据：如果浏览器里的数据损坏，就退回空账本，不让软件白屏
+function loadData(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY) || '{}');
+    return { plots:d.plots||[], expenses:d.expenses||[], workers:d.workers||[], trucks:d.trucks||[], sales:d.sales||[], media:d.media||[] };
+  }catch(e){
+    return { plots:[], expenses:[], workers:[], trucks:[], sales:[], media:[] };
+  }
+}
+
+function save(){ localStorage.setItem(KEY, JSON.stringify(dbData)); render(); }
+function plot(){ return dbData.plots.find(x=>x.id===selectedId); }
+function sumArr(arr, field, pid){ return dbData[arr].filter(x=>x.plotId===pid).reduce((a,x)=>a+Number(x[field]||0),0); }
+
+// 核心计算：一块地的所有账
+function sums(p){
+  const ex = sumArr('expenses','amount',p.id);   // 支出
+  const wo = sumArr('workers','paid',p.id);      // 工人已付
+  const tr = sumArr('trucks','paid',p.id);       // 运输已付
+  const purchase = Number(p.purchase||0);        // 承包款
+  const deposit = Number(p.deposit||0);          // 定金
+  const income = sumArr('sales','total',p.id);   // 应收总额
+  const received = sumArr('sales','received',p.id); // 实际收到
+  const due = dbData.sales.filter(x=>x.plotId===p.id).reduce((a,x)=>a+Math.max(0,Number(x.total||0)-Number(x.received||0)),0);
+  const cost = ex + wo + tr + purchase + deposit;
+  return { cost, ex, wo, tr, purchase, deposit, income, received, due, profit: income-cost, cashProfit: received-cost };
+}
+
+/* ---------- 弹窗（普通浮层，微信和老浏览器都兼容） ---------- */
+function openModal(w){ w.classList.add('open'); }
+function closeModal(w){ w.classList.remove('open'); }
+// 点遮罩空白处关闭、按 Esc 关闭
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.modal-wrap').forEach(w=>{
+    w.addEventListener('click',e=>{ if(e.target===w){ if(w.id==='mediaViewer') closeViewer(); else w.classList.remove('open'); } });
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+      if(mediaViewer.classList.contains('open')) closeViewer();
+      document.querySelectorAll('.modal-wrap.open').forEach(w=>w.classList.remove('open'));
+    }
+  });
+});
+
+/* ---------- 渲染 ---------- */
+function render(){
+  const list = $('#plotList');
+  list.innerHTML = dbData.plots.length
+    ? dbData.plots.map(p=>`<div class="item ${p.id===selectedId?'active':''}">
+        <div onclick="selectedId='${p.id}';view='home';render()" style="flex:1;cursor:pointer">
+          <div class="item-title">${esc(p.name)}</div>
+          <div class="item-sub">${esc(p.location||'未填地点')} · ${esc(p.status)}</div>
+        </div>
+        <div class="item-actions">
+          <button class="icon-btn" onclick="selectedId='${p.id}';view='home';render()">查看</button>
+          <button class="icon-btn" onclick="editPlot('${p.id}')">改</button>
+          <button class="icon-btn" onclick="removePlot('${p.id}')">删</button>
+        </div>
+      </div>`).join('')
+    : '<div class="empty">还没有项目<br>先新建第一个项目</div>';
+
+  const p = plot();
+  $('#main').innerHTML = p
+    ? mainHtml(p)
+    : (view==='settings' ? settingsView() : '<div class="empty"><h2>先建立第一个项目</h2><p>项目可以是杉木地块、工程、运输单或其他生意。</p><button class="btn" onclick="openModal(plotDialog)">新建第一个项目</button><button class="btn ghost" onclick="view=\'settings\';render()">打开设置</button></div>');
+
+  // 修复：切到"资料"页时，重新加载照片，否则照片会是空白
+  if(view==='media') loadMedia();
+}
+
+function removePlot(pid){
+  if(!confirm('删除这块地及其支出、工人、运输、销售和媒体记录？')) return;
+  dbData.plots = dbData.plots.filter(x=>x.id!==pid);
+  ['expenses','workers','trucks','sales'].forEach(k=>dbData[k]=dbData[k].filter(x=>x.plotId!==pid));
+  const mediaIds = dbData.media.filter(x=>x.plotId===pid).map(x=>x.id);
+  dbData.media = dbData.media.filter(x=>x.plotId!==pid);
+  // 修复：删地时把对应的照片/视频文件也一起删掉，不占空间
+  if(idb && mediaIds.length){
+    const tx = idb.transaction('files','readwrite');
+    mediaIds.forEach(mid=>tx.objectStore('files').delete(mid));
+  }
+  selectedId = dbData.plots[0]?.id || null;
+  save();
+}
+
+/* 标签高亮判断 */
+function tabOn(name){
+  if(name==='home') return view==='home' ? 'on' : '';
+  if(name==='add') return ['add','expense','work','sale'].includes(view) ? 'on' : '';
+  if(name==='accounting') return view==='accounting' ? 'on' : '';
+  if(name==='media') return view==='media' ? 'on' : '';
+  return '';
+}
+
+function mainHtml(p){
+  const s = sums(p);
+  const content =
+      view==='home'        ? overview(p,s)
+    : view==='add'         ? addHub(p)
+    : view==='accounting'  ? accountingView(p)
+    : view==='media'       ? mediaView(p)
+    : view==='settings'    ? settingsView()
+    : view==='profile'     ? profileView()
+    : view==='expense'     ? expenseForm(p)
+    : view==='work'        ? workForm(p)
+    : view==='sale'        ? saleForm(p)
+    : overview(p,s);
+  return `<div class="tabs">
+      <button class="tab ${tabOn('home')}" onclick="view='home';render()">首页</button>
+      <button class="tab ${tabOn('add')}" onclick="view='add';render()">记一笔</button>
+      <button class="tab ${tabOn('accounting')}" onclick="view='accounting';render()">查账</button>
+      <button class="tab ${tabOn('media')}" onclick="view='media';render()">资料</button>
+    </div>${content}`;
+}
+
+/* ---------- 首页总览 ---------- */
+function overview(p,s){
+  const y = new Date().getFullYear();
+  const inYear = dbData.sales.filter(x=>x.plotId===p.id && String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.received||0),0);
+  const outYear =
+      dbData.expenses.filter(x=>x.plotId===p.id && String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.amount||0),0)
+    + dbData.workers.filter(x=>x.plotId===p.id && String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.paid||0),0)
+    + dbData.trucks.filter(x=>x.plotId===p.id && String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.paid||0),0);
+  return `<h2>${esc(p.name)} <span class="badge">${esc(p.status)}</span></h2>
+    <div class="item-sub">${esc(p.location||'未填地点')} · 合同：${esc(p.contractNo||'未填')}</div>
+    <div class="stats" style="margin-top:14px">
+      <div class="stat"><span>已投入</span><b>${money(s.cost)}</b></div>
+      <div class="stat"><span>应收总额</span><b>${money(s.income)}</b></div>
+      <div class="stat"><span>账面盈亏</span><b>${money(s.profit)}</b></div>
+    </div>
+    <div class="stats" style="margin-top:10px">
+      <div class="stat"><span>实际到手</span><b>${money(s.received)}</b></div>
+      <div class="stat ${s.cashProfit>=0?'':'due'}"><span>实际盈亏</span><b>${money(s.cashProfit)}</b></div>
+      <div class="stat ${s.due>0?'due':''}"><span>待收尾款</span><b>${money(s.due)}</b></div>
+    </div>
+    <h3>投入明细</h3>
+    <div class="notice">承包款 ${money(s.purchase)} + 定金 ${money(s.deposit)} + 支出 ${money(s.ex)} + 工资 ${money(s.wo)} + 运输 ${money(s.tr)}</div>
+    <div class="notice" style="margin-top:6px">账面盈亏按"应收总额"算；实际盈亏只算真正到手的钱。定金若可退，退回来时记得记一笔收入。</div>
+    <h3>${y} 年小结</h3>
+    <div class="stats">
+      <div class="stat"><span>今年已收</span><b>${money(inYear)}</b></div>
+      <div class="stat"><span>今年已付</span><b>${money(outYear)}</b></div>
+      <div class="stat"><span>今年结余</span><b>${money(inYear-outYear)}</b></div>
+    </div>
+    <h3>合同与手续</h3>
+    <div class="notice">山主：${esc(p.owner||'未填')}　签约：${esc(p.date||'未填')}<br>${esc(p.note||'还没有补充说明')}</div>
+    <div class="actions">
+      <button class="btn ghost" onclick="view='expense';render()">+ 记一笔支出</button>
+      <button class="btn ghost" onclick="view='work';workKind='worker';render()">+ 记工人工资</button>
+      <button class="btn ghost" onclick="view='work';workKind='truck';render()">+ 记卡车运费</button>
+      <button class="btn ghost" onclick="view='sale';render()">+ 记一车木</button>
+      <button class="btn ghost" onclick="openMedia('${p.id}')">+ 加照片/文件</button>
+    </div>`;
+}
+
+/* ---------- 记一笔（入口） ---------- */
+function addHub(p){
+  return `<h2>记一笔</h2>
+    <div class="notice">只选你现在要记的事情，保存后自动进这块地的账。</div>
+    <div class="list">
+      <button class="item" onclick="view='expense';render()"><div><div class="item-title">记花费</div><div class="item-sub">油费、材料、办证、维修等支出</div></div><span>→</span></button>
+      <button class="item" onclick="view='work';workKind='worker';render()"><div><div class="item-title">记工人工资</div><div class="item-sub">砍伐、搬运等人工费</div></div><span>→</span></button>
+      <button class="item" onclick="view='work';workKind='truck';render()"><div><div class="item-title">记卡车运费</div><div class="item-sub">拉木材的外部车费</div></div><span>→</span></button>
+      <button class="item" onclick="view='sale';render()"><div><div class="item-title">记收入</div><div class="item-sub">卖货、收款和待收尾款</div></div><span>→</span></button>
+      <button class="item" onclick="openMedia('${p.id}')"><div><div class="item-title">存资料</div><div class="item-sub">保存照片、视频或文件，留作现场凭证</div></div><span>→</span></button>
+    </div>`;
+}
+
+/* ---------- 查账 ---------- */
+function accountingView(p){
+  const s = sums(p);
+  const now = new Date(), m = now.getMonth(), y = now.getFullYear();
+  const monthEx = dbData.expenses.filter(x=>x.plotId===p.id && sameMonth(x,y,m)).reduce((a,x)=>a+Number(x.amount||0),0);
+  const monthIn = dbData.sales.filter(x=>x.plotId===p.id && sameMonth(x,y,m)).reduce((a,x)=>a+Number(x.received||0),0);
+  return `<h2>查账</h2>
+    <div class="notice">${y}年${m+1}月：这个月花了多少、收了多少；项目总账：投入、收入和利润。</div>
+    <div class="stats">
+      <div class="stat"><span>本月花费</span><b>${money(monthEx)}</b></div>
+      <div class="stat"><span>本月已收</span><b>${money(monthIn)}</b></div>
+      <div class="stat"><span>项目利润</span><b>${money(s.profit)}</b></div>
+    </div>
+    <div class="list">
+      <div class="item"><div><div class="item-title">项目总投入</div><div class="item-sub">包括项目款、支出、工资和运输</div></div><strong>${money(s.cost)}</strong></div>
+      <div class="item"><div><div class="item-title">项目总收入</div><div class="item-sub">按销售总额计算</div></div><strong>${money(s.income)}</strong></div>
+      <div class="item ${s.due>0?'due':''}"><div><div class="item-title">还没收到</div><div class="item-sub">销售尾款</div></div><strong>${money(s.due)}</strong></div>
+    </div>
+    <h3>资金变化</h3>
+    <div class="notice">收入 − 投入 = 账面利润。软件负责准确计算，漏填或填错金额会影响结果。</div>`;
+}
+function sameMonth(x, y, m){
+  const raw = x.date || x.createdAt;
+  if(!raw) return false;
+  const d = new Date(raw);
+  if(isNaN(d)) return false;
+  return d.getFullYear()===y && d.getMonth()===m;
+}
+
+/* ---------- 设置 ---------- */
+function settingsView(){
+  return `<h2>设置</h2>
+    <div class="notice">这里管软件的通用设置。每块地的收支和全年统计，在"首页"就能看到。</div>
+    <div class="list">
+      <button class="item" onclick="view='profile';render()"><div><div class="item-title">我的资料</div><div class="item-sub">姓名、电话和常用联系人</div></div><span>→</span></button>
+      <div class="item"><div><div class="item-title">数据保存</div><div class="item-sub">所有文字、照片、视频和文件都保存在本机浏览器，不上传服务器</div></div><span>本地</span></div>
+      <div class="item"><div><div class="item-title">外观和背景</div><div class="item-sub">右上角"＋ 设置"里可切换浅色、深色、强调色和背景</div></div><span>可调</span></div>
+    </div>`;
+}
+
+/* ---------- 我的资料 ---------- */
+function profileView(){
+  const d = JSON.parse(localStorage.getItem('shanmu-profile')||'{}');
+  return `<h2>我的资料</h2>
+    <div class="notice">只保存在本机浏览器，不会写入网址。</div>
+    <form class="form" id="profileForm">
+      <div class="row"><div class="field"><label>姓名</label><input name="name" value="${esc(d.name||'')}" placeholder="例如：姓名"></div><div class="field"><label>电话</label><input name="phone" value="${esc(d.phone||'')}" placeholder="联系电话"></div></div>
+      <div class="field"><label>常用联系人</label><input name="contacts" value="${esc(d.contacts||'')}" placeholder="工人、车老板或收购方"></div>
+      <div class="field"><label>备注</label><textarea name="note" rows="3" placeholder="其他说明">${esc(d.note||'')}</textarea></div>
+      <div class="actions"><button class="btn">保存资料</button><button type="button" class="btn ghost" onclick="view='settings';render()">返回设置</button></div>
+    </form>`;
+}
+
+/* ---------- 记支出 ---------- */
+function expenseForm(p){
+  const e = editingId ? dbData.expenses.find(x=>x.id===editingId) : null;
+  const types = ['林木购置/承包款','地块押金','伐区设计服务费','山路修整','挖机柴油','挖机维修/保养','其他'];
+  const typeValue = e ? (e.type||'其他') : types[0];
+  return `<h2>${e?'修改支出':'记一笔支出'}</h2>
+    <div class="notice">这笔钱属于"${esc(p.name)}"，保存后会自动算进这块地。</div>
+    <form class="form" id="expenseForm">
+      <div class="row">
+        <div class="field"><label>日期</label><input type="date" name="date" value="${e?esc(e.date||''):today()}"></div>
+        <div class="field"><label>金额 *</label><input type="number" min="0" step="0.01" name="amount" value="${e?e.amount:''}" required placeholder="元"></div>
+      </div>
+      <div class="field"><label>花在什么地方（可直接打字，或点右侧选）*</label><input name="type" list="typeList" value="${esc(typeValue)}" required placeholder="例如：挖机柴油、青苗补偿、过路费">
+        <datalist id="typeList">${types.map(t=>`<option value="${t}"></option>`).join('')}</datalist>
+      </div>
+      <div class="field"><label>说明（可不填）</label><input name="note" value="${esc(e?.note||'')}" placeholder="例如：给哪位师傅、哪次加油"></div>
+      <div class="actions">
+        <button class="btn">${e?'保存修改':'保存支出'}</button>
+        ${e?`<button type="button" class="btn ghost" onclick="editingId=null;editingKind=null;view='expense';render()">取消修改</button>`:''}
+        <button type="button" class="btn ghost" onclick="view='home';render()">返回总览</button>
+      </div>
+    </form>
+    <h3>全部支出</h3>
+    ${dbData.expenses.filter(x=>x.plotId===p.id).slice().reverse().map(x=>`<div class="item"><div><div class="item-title">${esc(x.type)}</div><div class="item-sub">${x.date||''} ${esc(x.note||'')}</div></div><div class="item-actions"><strong>${money(x.amount)}</strong><button class="icon-btn" onclick="editRec('expenses','${x.id}','expense')">改</button><button class="icon-btn" onclick="delRec('expenses','${x.id}')">删</button></div></div>`).join('')||'<div class="empty">还没有支出</div>'}`;
+}
+
+/* ---------- 记工人 / 运输 ---------- */
+function workForm(p){
+  const arr = ['trucks','workers'].includes(editingKind) ? editingKind : (workKind==='truck' ? 'trucks' : 'workers');
+  const e = editingId ? dbData[arr].find(x=>x.id===editingId) : null;
+  const isEdit = !!e;
+  const kindValue = e ? (e.label || (arr==='trucks'?'外部卡车运费':'工人工资')) : (workKind==='truck'?'外部卡车运费':'工人工资');
+  return `<h2>${isEdit?'修改记录':'记工资 / 运输 / 其他费用'}</h2>
+    <form class="form" id="workForm">
+      <div class="field"><label>这笔钱叫什么（可直接打字，或点右侧选）</label><input name="kind" list="kindList" value="${esc(kindValue)}" placeholder="例如：工人工资、卡车运费、挖机租金">
+        <datalist id="kindList"><option value="工人工资"></option><option value="外部卡车运费"></option><option value="挖机租金"></option><option value="零工/点工"></option><option value="装卸搬运"></option><option value="电网安装"></option></datalist>
+      </div>
+      <div class="row">
+        <div class="field"><label>姓名/老板</label><input name="person" value="${esc(e?.person||'')}" placeholder="例如：阿三师傅、某某车老板" required></div>
+        <div class="field"><label>日期</label><input type="date" name="date" value="${e?esc(e.date||''):today()}"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>工种/去向</label><input name="role" value="${esc(e?.role||'')}" placeholder="砍伐、搬运、运到某工厂"></div>
+        <div class="field"><label>车牌（运输可填）</label><input name="plate" value="${esc(e?.plate||'')}" placeholder="选填"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>应付金额 *</label><input type="number" min="0" step="0.01" name="amount" value="${e?e.amount:''}" required placeholder="元"></div>
+        <div class="field"><label>已付金额</label><input type="number" min="0" step="0.01" name="paid" value="${e?e.paid:'0'}"></div>
+      </div>
+      <div class="field"><label>说明</label><input name="note" value="${esc(e?.note||'')}" placeholder="按天、按车、包工或其他约定"></div>
+      <div class="actions">
+        <button class="btn">${isEdit?'保存修改':'保存记录'}</button>
+        ${isEdit?`<button type="button" class="btn ghost" onclick="editingId=null;editingKind=null;view='work';render()">取消修改</button>`:''}
+        <button type="button" class="btn ghost" onclick="view='home';render()">返回总览</button>
+      </div>
+    </form>
+    <h3>全部记录</h3>
+    ${[...dbData.workers.filter(x=>x.plotId===p.id).map(x=>({...x,label:x.label||'工人工资',arr:'workers'})),...dbData.trucks.filter(x=>x.plotId===p.id).map(x=>({...x,label:x.label||'卡车运费',arr:'trucks'}))].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(x=>{const owe=Number(x.amount||0)-Number(x.paid||0);return `<div class="item ${owe>0?'due':''}"><div><div class="item-title">${esc(x.person)} · ${esc(x.label)}</div><div class="item-sub">${x.date||''} · 应付 ${money(x.amount)} · 已付 ${money(x.paid)}${esc(x.role?' · '+x.role:'')}</div></div><div class="item-actions"><strong>${owe>0?`还欠 ${money(owe)}`:'已结清'}</strong><button class="icon-btn" onclick="editRec('${x.arr}','${x.id}','work')">改</button><button class="icon-btn" onclick="delRec('${x.arr}','${x.id}')">删</button></div></div>`}).join('')||'<div class="empty">还没有记录</div>'}`;
+}
+
+/* ---------- 记一车木 ---------- */
+function saleForm(p){
+  const e = editingId ? dbData.sales.find(x=>x.id===editingId) : null;
+  const isEdit = !!e;
+  return `<h2>${isEdit?'修改这车木':'记一车木和尾款'}</h2>
+    <form class="form" id="saleForm">
+      <div class="row">
+        <div class="field"><label>出车日期</label><input type="date" name="date" value="${e?esc(e.date||''):today()}"></div>
+        <div class="field"><label>挂车车牌</label><input name="plate" value="${esc(e?.plate||'')}" placeholder="选填"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>收购老板/工厂</label><input name="buyer" value="${esc(e?.buyer||'')}" required placeholder="谁收了这车木"></div>
+        <div class="field"><label>备注</label><input name="note" value="${esc(e?.note||'')}" placeholder="例如：约定月底结清"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>方量（可不填）</label><input type="number" min="0" step="0.01" name="volume" id="saleVolume" value="${e?e.volume:''}" placeholder="方" oninput="autoTotal()"></div>
+        <div class="field"><label>单价（可不填）</label><input type="number" min="0" step="0.01" name="unit" id="saleUnit" value="${e?e.unit:''}" placeholder="元/方" oninput="autoTotal()"></div>
+      </div>
+      <div class="notice">填了方量和单价，会自动算出应收总价（也可自己改）。</div>
+      <div class="row">
+        <div class="field"><label>本车应收总价 *</label><input type="number" min="0" step="0.01" name="total" id="saleTotal" value="${e?e.total:''}" required placeholder="元"></div>
+        <div class="field"><label>已收到</label><input type="number" min="0" step="0.01" name="received" value="${e?e.received:'0'}"></div>
+      </div>
+      <div class="actions">
+        <button class="btn">${isEdit?'保存修改':'保存这车木'}</button>
+        ${isEdit?`<button type="button" class="btn ghost" onclick="editingId=null;editingKind=null;view='sale';render()">取消修改</button>`:''}
+        <button type="button" class="btn ghost" onclick="view='home';render()">返回总览</button>
+      </div>
+    </form>
+    <h3>待收尾款</h3>
+    ${dbData.sales.filter(x=>x.plotId===p.id).slice().reverse().map(x=>{let d=Number(x.total)-Number(x.received);return `<div class="item ${d>0?'due':''}"><div><div class="item-title">${esc(x.buyer)} · ${esc(x.plate||'无车牌')}</div><div class="item-sub">${x.date||''} · 应收 ${money(x.total)}</div></div><div class="item-actions"><strong>${d>0?`还欠 ${money(d)}`:'已结清'}</strong><button class="icon-btn" onclick="editRec('sales','${x.id}','sale')">改</button><button class="icon-btn" onclick="delRec('sales','${x.id}')">删</button></div></div>`}).join('')||'<div class="empty">还没有销售记录</div>'}`;
+}
+// 方量 × 单价 自动算总价
+function autoTotal(){
+  const v = Number($('#saleVolume')?.value), u = Number($('#saleUnit')?.value), t = $('#saleTotal');
+  if(v>0 && u>0 && t) t.value = (v*u).toFixed(2);
+}
+
+/* ---------- 资料（照片/视频） ---------- */
+function mediaView(p){
+  return `<h2>现场照片、视频和文件</h2>
+    <div class="notice">记录合同、砍伐、装车、交货现场，也能存合同、单据、PDF 等文件。都留在本机，不会上传。</div>
+    <div class="actions"><button class="btn" onclick="openMedia('${p.id}')">+ 添加照片/视频/文件</button></div>
+    <div class="media-grid" style="margin-top:14px">
+      ${dbData.media.filter(x=>x.plotId===p.id).map(x=>`<div class="media"><div id="m-${x.id}" style="cursor:pointer" onclick="viewMedia('${x.id}')" title="点击查看"></div><small>${esc(x.note||'无说明')}<br>${x.date||''}</small><div class="item-actions" style="padding:2px 6px 8px"><button class="icon-btn" onclick="viewMedia('${x.id}')">查看</button><button class="icon-btn" onclick="delMedia('${x.id}')">删除</button></div></div>`).join('')||'<div class="empty">还没有照片、视频或文件</div>'}
+    </div>`;
+}
+
+/* ---------- 记录的新增 / 修改 / 删除 ---------- */
+function editRec(kind, rid, vname){ editingKind = kind; editingId = rid; view = vname; render(); }
+function delRec(kind, rid){
+  if(!confirm('确定删除这条记录吗？')) return;
+  dbData[kind] = dbData[kind].filter(x=>x.id!==rid);
+  save();
+}
+function delMedia(mid){
+  if(!confirm('确定删除这条照片/视频/文件吗？')) return;
+  if(idb) idb.transaction('files','readwrite').objectStore('files').delete(mid);
+  dbData.media = dbData.media.filter(x=>x.id!==mid);
+  save();
+}
+
+/* 查看大图 / 播放视频 / 打开下载文件（点缩略图或"查看"按钮打开） */
+let viewerUrl = null, viewerName = '';
+async function viewMedia(mid){
+  if(!idb) await openDb();
+  const row = await idbGet(mid).catch(()=>null);
+  if(!row || !row.blob){ alert('找不到这个文件，可能已被删除或当时没有保存成功。'); return; }
+  if(viewerUrl){ URL.revokeObjectURL(viewerUrl); viewerUrl=null; }
+  viewerUrl = URL.createObjectURL(row.blob);
+  const m = dbData.media.find(x=>x.id===mid);
+  viewerName = (m && m.name) || '文件';
+  const t = row.blob.type || '';
+  document.getElementById('mediaViewerTitle').textContent = (m && m.note) || viewerName;
+  let html;
+  if(t.startsWith('video')){
+    html = `<video controls autoplay playsinline src="${viewerUrl}" style="display:block;width:100%;max-height:70vh;border-radius:10px;background:#000"></video>`;
+  }else if(t.startsWith('image')){
+    html = `<img src="${viewerUrl}" alt="现场资料" style="display:block;width:100%;max-height:70vh;object-fit:contain;border-radius:10px;background:#000">`;
+  }else{
+    html = `<div style="text-align:center;padding:34px 12px">
+      <div style="font-size:60px;line-height:1">${fileIcon(viewerName)}</div>
+      <div style="margin:16px 0 4px;font-weight:700;word-break:break-all">${esc(viewerName)}</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px">${m && m.size ? humanSize(m.size) : ''} 这是上传的文件，点下面按钮打开或下载</div>
+      <div class="actions" style="justify-content:center"><button class="btn" onclick="openFile()">打开查看</button><button class="btn ghost" onclick="downloadFile()">下载保存</button></div>
+    </div>`;
+  }
+  document.getElementById('mediaViewerBody').innerHTML = html;
+  openModal(mediaViewer);
+}
+function openFile(){ if(viewerUrl) window.open(viewerUrl,'_blank'); }
+function downloadFile(){ if(viewerUrl){ const a=document.createElement('a'); a.href=viewerUrl; a.download=viewerName||'文件'; a.click(); } }
+function closeViewer(){
+  closeModal(mediaViewer);
+  document.getElementById('mediaViewerBody').innerHTML = '';
+  if(viewerUrl){ URL.revokeObjectURL(viewerUrl); viewerUrl=null; }
+  viewerName = '';
+}
+function editPlot(pid){
+  const p = dbData.plots.find(x=>x.id===pid); if(!p) return;
+  const f = $('#plotForm'); if(!f) return;
+  f.elements.name.value=p.name||''; f.elements.location.value=p.location||'';
+  f.elements.date.value=p.date||'';
+  f.elements.status.value=p.status||'待开发';
+  f.elements.purchase.value=p.purchase||''; f.elements.deposit.value=p.deposit||'';
+  f.elements.owner.value=p.owner||''; f.elements.contractNo.value=p.contractNo||'';
+  f.elements.note.value=p.note||'';
+  editingPlotId = pid;
+  $('#plotDialogTitle').textContent = '修改地块';
+  openModal(plotDialog);
+}
+
+/* ---------- IndexedDB（照片/视频本体存这里） ---------- */
+function openDb(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('shanmu-media',1);
+    r.onupgradeneeded = ()=>r.result.createObjectStore('files',{keyPath:'id'});
+    r.onsuccess = ()=>{ idb=r.result; res(idb); };
+    r.onerror = ()=>rej(r.error);
+  });
+}
+function idbGet(id){
+  return new Promise((res,rej)=>{ const r=idb.transaction('files').objectStore('files').get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+}
+
+async function openMedia(plotId){ $('#mediaForm').dataset.plotId = plotId; openModal(mediaDialog); }
+
+/* 文件图标 / 大小 / 卡片 */
+function fileIcon(name){
+  const ext = (String(name).split('.').pop()||'').toLowerCase();
+  if(ext==='pdf') return '📕';
+  if(['doc','docx','txt','rtf'].includes(ext)) return '📄';
+  if(['xls','xlsx','csv'].includes(ext)) return '📊';
+  if(['ppt','pptx'].includes(ext)) return '📽️';
+  if(['zip','rar','7z'].includes(ext)) return '🗜️';
+  if(['mp4','mov','avi','mkv','mp3'].includes(ext)) return '🎬';
+  if(['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) return '🖼️';
+  return '📎';
+}
+function humanSize(n){
+  if(!n || n<1024) return n ? n+'B' : '';
+  if(n<1048576) return (n/1024).toFixed(1)+'KB';
+  return (n/1048576).toFixed(1)+'MB';
+}
+function fileCardHTML(name, size){
+  return `<div class="file-card"><div class="file-ico">${fileIcon(name)}</div><div class="file-name">${esc(name)}</div><div class="file-tip">${size?humanSize(size):'文件'} · 点击查看/下载</div></div>`;
+}
+
+async function loadMedia(){
+  if(!idb) await openDb();
+  for(const x of dbData.media){
+    const r = idb.transaction('files').objectStore('files').get(x.id);
+    r.onsuccess = ()=>{
+      if(!r.result) return;
+      const el = document.querySelector('#m-'+x.id);
+      if(!el) return;
+      const old = el.querySelector('img,video');
+      if(old && old.src && old.src.startsWith('blob:')) URL.revokeObjectURL(old.src);
+      const url = URL.createObjectURL(r.result.blob);
+      const t = r.result.type || '';
+      if(t.startsWith('video')) el.innerHTML = `<video muted preload="metadata" src="${url}"></video>`;
+      else if(t.startsWith('image')) el.innerHTML = `<img src="${url}" alt="现场资料">`;
+      else el.innerHTML = fileCardHTML(x.name, x.size);
+    };
+  }
+}
+
+/* ---------- 备份 / 导入（照片、视频和文件一起打包） ---------- */
+function blobToDataUrl(blob){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob); }); }
+function dataUrlToBlob(u){ return fetch(u).then(r=>r.blob()); }
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+
+async function exportBackup(){
+  const media = [];
+  for(const m of dbData.media){
+    const rec = {...m};
+    try{
+      if(idb){
+        const row = await idbGet(m.id);
+        if(row && row.blob){ rec.dataUrl = await blobToDataUrl(row.blob); rec.type = row.blob.type; }
+      }
+    }catch(e){}
+    media.push(rec);
+  }
+  const out = { version:2, exportedAt:stamp(), plots:dbData.plots, expenses:dbData.expenses, workers:dbData.workers, trucks:dbData.trucks, sales:dbData.sales, media };
+  download(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}), '杉木经营台账备份-'+today()+'.json');
+  localStorage.setItem('shanmu-last-backup', String(Date.now()));
+  document.getElementById('backupBanner').hidden = true;
+  alert('备份已导出（文字、照片、视频和文件都包含在内）');
+}
+
+async function restoreMedia(list){
+  if(!idb) await openDb();
+  for(const m of list){
+    if(!m.dataUrl) continue;
+    try{
+      const blob = await dataUrlToBlob(m.dataUrl);
+      await new Promise((res,rej)=>{ const r=idb.transaction('files','readwrite').objectStore('files').put({id:m.id,blob}); r.onsuccess=res; r.onerror=rej; });
+    }catch(e){}
+  }
+  loadMedia();
+}
+
+/* ---------- 事件绑定 ---------- */
+document.addEventListener('DOMContentLoaded',()=>{
+  // 关于
+  const about = document.getElementById('aboutBtn');
+  if(about) about.onclick = ()=>openModal(aboutDialog);
+
+  // 备份提醒：超过 7 天没备份就提示
+  const last = Number(localStorage.getItem('shanmu-last-backup')||0);
+  const days = last ? Math.floor((Date.now()-last)/86400000) : 999;
+  if(!last || days>=7){
+    const b = document.getElementById('backupBanner');
+    b.hidden = false;
+    document.getElementById('backupBannerText').textContent = last ? `距上次备份已 ${days} 天，建议尽快备份，防止数据丢失` : '你还没有备份过账本，建议现在备份一份';
+  }
+
+  // 主题 / 强调色初始化
+  if(localStorage.getItem('shanmu-theme')==='dark') document.body.classList.add('dark');
+  const savedAccent = localStorage.getItem('shanmu-accent');
+  if(savedAccent){ setAccent(savedAccent); }
+
+  // 背景开关初始状态
+  if(localStorage.getItem('shanmu-background')==='off'){ document.getElementById('ambient').style.display='none'; document.getElementById('bgLayer').style.display='none'; document.getElementById('bgState').textContent='关闭'; }
+});
+
+function dismissBanner(){ document.getElementById('backupBanner').hidden = true; }
+
+function setAccent(hex){
+  document.documentElement.style.setProperty('--brand', hex);
+  document.documentElement.style.setProperty('--brand-deep', darken(hex,0.35));
+  localStorage.setItem('shanmu-accent', hex);
+}
+function darken(hex,f){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.round(r*(1-f));g=Math.round(g*(1-f));b=Math.round(b*(1-f));
+  return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const moreBtn = document.getElementById('moreBtn');
+  moreBtn.onclick = ()=>openModal(moreDialog);
+
+  document.getElementById('themeBtn').onclick = ()=>{ document.body.classList.toggle('dark'); localStorage.setItem('shanmu-theme', document.body.classList.contains('dark')?'dark':'light'); };
+
+  document.getElementById('paletteBtn').onclick = ()=>document.getElementById('accentPicker').click();
+
+  const ambient = document.getElementById('ambient');
+  const bgLayer = document.getElementById('bgLayer');
+  document.getElementById('backgroundBtn').onclick = ()=>{
+    const on = ambient.style.display==='none';
+    ambient.style.display = on?'block':'none';
+    bgLayer.style.display = on?'block':'none';
+    localStorage.setItem('shanmu-background', on?'on':'off');
+    document.getElementById('bgState').textContent = on?'动态':'关闭';
+  };
+
+  document.getElementById('accentPicker').oninput = e=>setAccent(e.target.value);
+
+  document.getElementById('exportBtn').onclick = exportBackup;
+  document.getElementById('importBtn').onclick = ()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange = importBackup;
+
+  // 地块
+  document.getElementById('addPlotBtn').onclick = ()=>{ editingPlotId=null; document.getElementById('plotForm').reset(); document.getElementById('plotDialogTitle').textContent='新建地块'; openModal(plotDialog); };
+  document.getElementById('plotForm').onsubmit = e=>{
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    f.status = (f.status||'').trim() || '待开发';
+    if(editingPlotId){
+      const i = dbData.plots.findIndex(x=>x.id===editingPlotId);
+      if(i>-1) dbData.plots[i] = {...dbData.plots[i], ...f};
+      selectedId = editingPlotId; editingPlotId = null;
+    }else{
+      const p = {...f, id:id()}; dbData.plots.push(p); selectedId = p.id;
+    }
+    save(); closeModal(plotDialog); e.target.reset();
+    document.getElementById('plotDialogTitle').textContent='新建地块';
+  };
+
+  // 媒体
+  document.getElementById('mediaForm').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target), file = f.get('file');
+    if(!file) return;
+    await openDb();
+    const rec = { id:id(), plotId:e.target.dataset.plotId, name:file.name, note:f.get('note'), date:today(), type:file.type, size:file.size };
+    try{
+      await new Promise((res,rej)=>{ const r=idb.transaction('files','readwrite').objectStore('files').put({id:rec.id,blob:file}); r.onsuccess=res; r.onerror=()=>rej(r.error); });
+    }catch(err){
+      alert('保存失败：文件太大或浏览器空间不足。请换更小的视频，或先导出备份。');
+      return;
+    }
+    dbData.media.push(rec);
+    save(); closeModal(mediaDialog); e.target.reset();
+    setTimeout(loadMedia,150);
+  };
+
+  // 主区域表单提交（资料/支出/工资运输/卖木）
+  document.getElementById('main').addEventListener('submit', e=>{
+    if(e.target.id==='profileForm'){
+      e.preventDefault();
+      localStorage.setItem('shanmu-profile', JSON.stringify(Object.fromEntries(new FormData(e.target))));
+      alert('资料已保存'); view='settings'; render();
+    }
+    if(e.target.id==='expenseForm'){
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      f.type = (f.type||'').trim() || '其他';
+      if(editingId){
+        const i = dbData.expenses.findIndex(x=>x.id===editingId);
+        if(i>-1) dbData.expenses[i] = {...dbData.expenses[i], ...f};
+        editingId=null; editingKind=null;
+      }else{
+        dbData.expenses.push({id:id(), plotId:selectedId, ...f});
+      }
+      save();
+    }
+    if(e.target.id==='workForm'){
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const v = (f.kind||'').trim() || '工人工资';
+      const row = { person:f.person, role:f.role, plate:f.plate, date:f.date, amount:Number(f.amount), paid:Number(f.paid||0), note:f.note, label:'' };
+      let arr;
+      if(v==='工人工资'){ arr='workers'; }
+      else if(v==='外部卡车运费'){ arr='trucks'; }
+      else if(/车|运/.test(v)){ arr='trucks'; row.label=v; }
+      else { arr='workers'; row.label=v; }
+      if(editingId){
+        const from = (editingKind && dbData[editingKind] && dbData[editingKind].some(x=>x.id===editingId)) ? editingKind : null;
+        if(from && from!==arr){
+          // 编辑时换了类型：从原来的数组移到新数组，不产生重复
+          dbData[from] = dbData[from].filter(x=>x.id!==editingId);
+          dbData[arr].push({id:editingId, plotId:selectedId, ...row});
+        }else{
+          const i = dbData[arr].findIndex(x=>x.id===editingId);
+          if(i>-1) dbData[arr][i] = {...dbData[arr][i], ...row};
+        }
+        editingId=null; editingKind=null;
+      }else{
+        dbData[arr].push({id:id(), plotId:selectedId, ...row});
+      }
+      save();
+    }
+    if(e.target.id==='saleForm'){
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const row = {...f, total:Number(f.total), received:Number(f.received||0)};
+      if(editingId){
+        const i = dbData.sales.findIndex(x=>x.id===editingId);
+        if(i>-1) dbData.sales[i] = {...dbData.sales[i], ...row};
+        editingId=null; editingKind=null;
+      }else{
+        dbData.sales.push({id:id(), plotId:selectedId, ...row});
+      }
+      save();
+    }
+  });
+});
+
+async function importBackup(e){
+  const file = e.target.files[0]; if(!file) return;
+  let d;
+  try{ d = JSON.parse(await file.text()); }catch{ alert('文件不是有效的备份'); return; }
+  const need = ['plots','expenses','workers','trucks','sales','media'];
+  if(!d || need.some(k=>!Array.isArray(d[k]))){ alert('备份文件结构不完整，已取消导入'); return; }
+  if(!confirm('导入会覆盖当前所有账目。当前数据会先自动备份一份，确定继续吗？')) return;
+  try{ download(new Blob([JSON.stringify(dbData,null,2)],{type:'application/json'}), '导入前自动备份-'+today()+'.json'); }catch{}
+  dbData = { plots:d.plots, expenses:d.expenses, workers:d.workers, trucks:d.trucks, sales:d.sales, media:d.media };
+  selectedId = dbData.plots[0]?.id || null;
+  save();
+  await restoreMedia(d.media||[]);
+  alert('备份已导入');
+}
+
+render();
+openDb().then(loadMedia);
+</script>
+<script>
+/* 背景漂浮粒子动画（可关，尊重系统"减少动态"设置） */
+(()=>{
+  const c=document.getElementById('ambient'),x=c.getContext('2d');
+  let w,h,pts=[];
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  function resize(){
+    w=c.width=innerWidth*devicePixelRatio;
+    h=c.height=innerHeight*devicePixelRatio;
+    x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    pts=Array.from({length:42},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*2.6+1.4,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.14}));
+  }
+  function draw(){
+    x.clearRect(0,0,innerWidth,innerHeight);
+    const color=getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#16634c';
+    x.fillStyle=color+'88';
+    for(const p of pts){
+      x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fill();
+      if(!reduced.matches){
+        p.x+=p.vx;p.y+=p.vy;
+        if(p.x<0||p.x>innerWidth)p.vx*=-1;
+        if(p.y<0||p.y>innerHeight)p.vy*=-1;
+      }
+    }
+    if(!reduced.matches)requestAnimationFrame(draw);
+  }
+  addEventListener('resize',resize);resize();draw();
+})();
+</script>
+</body></html>
