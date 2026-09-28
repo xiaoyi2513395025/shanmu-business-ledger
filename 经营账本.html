@@ -1,0 +1,1599 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>本地经营账本 · 离线记账工具</title>
+<style>
+:root{
+  --ink:#15352b;
+  --muted:#4c6a5f;
+  --line:#d5e4db;
+  --brand:#16634c;
+  --brand-deep:#0e4636;
+  --warn-bg:#fff4d6;
+  --warn-line:#efd38a;
+  --warn-ink:#7a4f04;
+  --danger:#b42318;
+  --ok:#1a7f52;
+  --sm:13px;
+  --radius:14px;
+  --font-body:"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-num:"SFMono-Regular","Cascadia Code",Menlo,Consolas,ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:linear-gradient(135deg,#f6faf7 0,#e9f3ec 48%,#f5f8f5 100%);
+  color:var(--ink);
+  font:16px/1.55 var(--font-body);
+  min-height:100vh;
+  -webkit-text-size-adjust:100%;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.app{max-width:1160px;margin:auto;padding:18px 16px 56px;position:relative;z-index:1}
+
+/* 顶部 */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.brand{display:flex;gap:12px;align-items:center}
+.mark{width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,var(--brand),var(--brand-deep));color:#fff;display:grid;place-items:center;font-size:22px;font-weight:800;box-shadow:0 10px 24px #17644c33}
+.title{font-weight:800;font-size:22px;letter-spacing:.3px}
+.subtitle{font-size:var(--sm);color:var(--muted);max-width:60ch}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* 按钮 */
+.btn{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;padding:10px 15px;border-radius:999px;font-weight:700;box-shadow:0 7px 18px #1d6b5228;transition:transform .18s,box-shadow .18s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 11px 22px #1d6b5236}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:#ffffffe6;color:var(--brand);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:var(--brand)}
+
+/* 布局 */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.9fr);gap:16px;align-items:start}
+.panel{background:#ffffffee;border:1px solid #ffffffcc;border-radius:22px;box-shadow:0 20px 50px -26px rgba(21,53,43,.25);padding:18px;animation:rise .4s ease both}
+.panel h2{font-size:18px;margin:0 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.panel h3{font-size:15px;margin:18px 0 8px}
+
+/* 统计卡片 */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:linear-gradient(145deg,#e9f7ee,#dbefe4);border:1px solid #d2ebdc;border-radius:16px;padding:12px 13px;transition:transform .18s}
+.stat:hover{transform:translateY(-3px)}
+.stat span{font-size:var(--sm);color:var(--muted);display:flex;align-items:center;gap:4px}
+.stat b{font-size:21px;display:block;margin-top:2px}
+.stat .hint{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
+.stat.neg b{color:var(--danger)}
+.stat.due{background:var(--warn-bg);border-color:var(--warn-line)}
+
+/* 条形图 */
+.bars{display:grid;gap:8px;margin-top:6px}
+.bar-row{display:grid;grid-template-columns:88px 1fr auto;gap:8px;align-items:center;font-size:var(--sm)}
+.bar-track{background:#e7f1ea;border-radius:999px;height:12px;overflow:hidden}
+.bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),#2f8a68);transition:width .5s ease}
+.bar-fill.alt{background:linear-gradient(90deg,#c98b17,#e0a83a)}
+
+/* 列表 */
+.list{display:grid;gap:9px;margin-top:12px}
+.item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;display:flex;justify-content:space-between;gap:10px;align-items:center;transition:border-color .18s,transform .18s}
+.item:hover{transform:translateY(-1px);border-color:#9bcbb0}
+.item.active{border-color:var(--brand);box-shadow:0 0 0 3px #1d6b5218}
+.item.owner-due{background:var(--warn-bg);border-color:var(--warn-line)}
+.item-title{font-weight:700}
+.item-sub{font-size:var(--sm);color:var(--muted)}
+.item-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.icon-btn{background:#eaf5ed;color:var(--brand);border-radius:9px;padding:7px 10px;font-weight:700;font-size:var(--sm)}
+.icon-btn:hover{background:#d9eee1}
+
+/* 标签页 */
+.tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}
+.tab{white-space:nowrap;background:#edf5ef;color:#28634e;padding:8px 13px;border-radius:999px;font-weight:600;transition:.18s}
+.tab:hover{background:#d9eee1}
+.tab.on{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;box-shadow:0 5px 14px #1d6b5226}
+
+/* 表单 */
+.form{display:grid;gap:11px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field label{display:block;font-size:var(--sm);color:var(--muted);margin:0 0 4px}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fbfefb;outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px #1d6b5215}
+.field .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.empty{padding:26px 10px;text-align:center;color:var(--muted)}
+.badge{display:inline-flex;padding:3px 9px;border-radius:999px;background:#e8f1eb;color:#2b6c54;font-size:var(--sm);font-weight:600}
+.notice{font-size:var(--sm);color:var(--muted);background:#f5f8f5;border-radius:12px;padding:10px;line-height:1.6}
+.notice.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.notice.danger{background:#fdecea;color:var(--danger)}
+
+/* 分类胶囊 */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg-btn{flex:1;min-width:72px;padding:9px 8px;border-radius:999px;background:#eaf5ed;color:#28634e;font-weight:700;border:1px solid transparent;transition:background .18s,color .18s}
+.seg-btn.on{background:linear-gradient(135deg,var(--brand),var(--brand-deep));color:#fff;box-shadow:0 5px 14px #1d6b5226}
+
+/* 横幅 */
+.banner{display:flex;align-items:center;gap:10px;background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-ink);border-radius:14px;padding:10px 14px;margin-bottom:14px;font-size:14px;flex-wrap:wrap}
+.banner .btn{margin-left:auto}
+
+/* 媒体 */
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.media{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#f7faf7}
+.media img,.media video{width:100%;height:110px;object-fit:cover;display:block}
+.media small{display:block;padding:6px 6px 2px;color:var(--muted)}
+
+/* 文件卡片 */
+.file-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:110px;padding:8px;text-align:center;background:#f2f7f4}
+.file-ico{font-size:32px;line-height:1}
+.file-name{font-size:12px;font-weight:700;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.file-tip{font-size:11px;color:var(--muted)}
+
+/* 存储条 */
+.storage-bar{height:14px;border-radius:999px;background:#e7f1ea;overflow:hidden;margin:6px 0}
+.storage-fill{height:100%;background:linear-gradient(90deg,var(--brand),#2f8a68)}
+.storage-fill.high{background:linear-gradient(90deg,#d97706,#ef4444)}
+
+/* 弹窗 */
+.modal-wrap{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(13,36,28,.35);padding:13px}
+.modal-wrap.open{display:flex;animation:fadeIn .2s ease}
+.modal{background:#fff;border-radius:18px;width:min(580px,100%);max-height:88vh;overflow:auto;padding:20px;box-shadow:0 30px 80px #18352c38;animation:modalIn .28s cubic-bezier(.2,.8,.22,1)}
+.modal h2{margin-top:0}
+.modal .actions{justify-content:flex-end}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+
+/* 深色模式 */
+body.dark{--ink:#eaf5ed;--muted:#9fb4a9;--line:#2a4035;background:linear-gradient(135deg,#0e1815,#17251f 48%,#0d1713)}
+body.dark .panel{background:#17251fee;border-color:#ffffff14}
+body.dark .item{background:#16241e;border-color:#2a4035}
+body.dark .btn.ghost{background:#1d2d26;color:#b9e4c9;border-color:#365142}
+body.dark .icon-btn{background:#1d2d26;color:#b9e4c9}
+body.dark .tab{background:#20392d;color:#b9e4c9}
+body.dark .field input,body.dark .field select,body.dark .field textarea{background:#14211b}
+body.dark .notice{background:#1d2d26}
+body.dark .notice.warn{background:#2a2a18;color:#e6c878}
+body.dark .notice.danger{background:#3a1f1c;color:#ffb4ab}
+body.dark .stat{background:linear-gradient(145deg,#1c2f27,#16241e);border-color:#2a4035}
+body.dark .stat.due{background:#2a2a18}
+body.dark .seg-btn{background:#1d2d26;color:#b9e4c9}
+body.dark .modal{background:#17251f}
+body.dark .banner{background:#2a2a18;border-color:#5a4a1a;color:#e6c878}
+body.dark .bar-track,body.dark .storage-bar{background:#1d2d26}
+body.dark .file-card,body.dark .media{background:#16241e}
+body.dark .badge{background:#1e3a2e;color:#b9e4c9}
+
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+@media(max-width:820px){.grid{grid-template-columns:1fr}.stat b{font-size:19px}}
+@media(max-width:460px){.app{padding:12px 10px 40px}.panel{padding:14px;border-radius:16px}.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.media-grid{grid-template-columns:repeat(2,1fr)}.bar-row{grid-template-columns:72px 1fr auto}}
+
+@media print{
+  body{background:#fff!important}
+  .top-actions,.tabs,.actions,.banner,#backupBanner,.btn,.icon-btn,.no-print{display:none!important}
+  .grid{grid-template-columns:1fr!important;gap:0!important}
+  .panel{box-shadow:none!important;border:1px solid #ddd!important;background:#fff!important;padding:0!important;border-radius:0!important}
+  .stat{border:1px solid #ddd!important;background:#fafafa!important}
+  .item{border-color:#ddd!important}
+  .app{max-width:none!important;padding:0!important}
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<main class="app">
+
+  <div id="backupBanner" class="banner" hidden>
+    <span id="backupBannerText" data-i18n="backupBannerNever">还没有备份过</span>
+    <button class="btn" id="bannerBackupBtn" data-i18n="backupNow">立即备份</button>
+    <button class="btn ghost" id="bannerDismissBtn" data-i18n="later">稍后再说</button>
+  </div>
+
+  <header class="top">
+    <div class="brand">
+      <button class="mark" id="aboutBtn" data-i18n-title="aboutTitle" title="查看账本说明">账</button>
+      <div>
+        <div class="title" data-i18n="appTitle">本地经营账本</div>
+        <div class="subtitle" data-i18n="appSub">记录地块的收入、支出、欠款和利润，数据只存在本机浏览器</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="moreBtn" data-i18n="settings" data-i18n-title="settings" title="打开设置">设置</button>
+    </div>
+  </header>
+
+  <section class="grid">
+    <aside class="panel">
+      <h2 data-i18n="plots">地块</h2>
+      <div class="notice" data-i18n="plotsNote">每笔账都归属到一块地，分地块统计，账目才不会混。</div>
+      <div class="actions"><button class="btn" id="addPlotBtn" data-i18n="newPlot">新建地块</button></div>
+      <div class="list" id="plotList"></div>
+    </aside>
+    <section class="panel"><div id="main"></div></section>
+  </section>
+</main>
+
+<!-- 新建/修改地块 -->
+<div class="modal-wrap" id="plotDialog">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="plotDialogTitle">
+    <h2 id="plotDialogTitle" data-i18n="newPlot">新建地块</h2>
+    <form class="form" id="plotForm">
+      <div class="row">
+        <div class="field"><label data-i18n="plotName">地块名称 *</label><input name="name" data-i18n-ph="plotNamePh" placeholder="例如：那马山一号" required></div>
+        <div class="field"><label data-i18n="location">地点</label><input name="location" data-i18n-ph="locationPh" placeholder="村、屯或山名"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label data-i18n="area">面积（亩）</label><input type="number" min="0" step="0.01" name="area" placeholder="用于计算每亩成本"></div>
+        <div class="field"><label data-i18n="signDate">签约日期</label><input type="date" name="date"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label data-i18n="termY">承包年限（年）</label><input type="number" min="0" step="1" name="term" data-i18n-ph="termPh" placeholder="例如：30"></div>
+        <div class="field"><label data-i18n="expireDate">到期日期</label><input type="date" name="expire" data-i18n-ph="expirePh" placeholder="留空则按签约日 + 年限自动推算"></div>
+      </div>
+      <div class="field"><label data-i18n="status">地块状态</label>
+        <select name="status">
+          <option value="待开发" data-i18n="stTodo">待开发</option>
+          <option value="待采伐" data-i18n="stPending">待采伐</option>
+          <option value="正在采伐" data-i18n="stCutting">正在采伐</option>
+          <option value="采伐完毕" data-i18n="stDone">采伐完毕</option>
+          <option value="已回款" data-i18n="stPaid">已回款</option>
+        </select>
+        <div class="hint" data-i18n="statusHint">固定选项，方便按状态筛选和统计。</div>
+      </div>
+      <h3 data-i18n="purchaseMoney">承包款与定金</h3>
+      <div class="row">
+        <div class="field"><label data-i18n="purchaseTotal">承包款总额</label><input type="number" min="0" step="0.01" name="purchase" placeholder="含定金的合同总额"></div>
+        <div class="field"><label data-i18n="depositPaid">已付定金</label><input type="number" min="0" step="0.01" name="deposit" placeholder="已付的定金 / 押金"></div>
+      </div>
+      <div class="field"><label data-i18n="paidPrincipal">已付承包款（不含定金）</label><input type="number" min="0" step="0.01" name="paidPrincipal" placeholder="已付的分期款"></div>
+      <div class="field"><label data-i18n="purchaseNote">承包款备注</label><input name="purchaseNote" placeholder="例如：首付 3 成，剩余按年支付"></div>
+      <div class="hint" data-i18n="purchaseHint">未付承包款 = 承包款总额 − 已付定金 − 已付承包款。定金也计入承包款总额，不会重复计算。</div>
+      <div class="row">
+        <div class="field"><label data-i18n="owner">山主姓名</label><input name="owner" placeholder="选填"></div>
+        <div class="field"><label data-i18n="contractNo">合同编号</label><input name="contractNo" placeholder="选填"></div>
+      </div>
+      <div class="field"><label data-i18n="contractNote">合同 / 手续备注</label><textarea name="note" rows="2" placeholder="例如：尾款约定、许可证办理情况"></textarea></div>
+      <div class="actions"><button class="btn" type="submit" data-i18n="savePlot">保存地块</button><button class="btn ghost" type="button" data-close="plotDialog" data-i18n="cancel">取消</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- 添加照片/视频/文件 -->
+<div class="modal-wrap" id="mediaDialog">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mediaDialogTitle">
+    <h2 id="mediaDialogTitle" data-i18n="mediaDialogTitle">添加照片、视频或文件</h2>
+    <div class="notice" data-i18n="mediaNote2">文件保存在这台设备的浏览器里，不会上传服务器。单个文件建议不超过 20MB；本地存储有容量上限，请配合定期导出备份使用。</div>
+    <form class="form" id="mediaForm">
+      <div class="field"><label data-i18n="chooseFile">选择照片、视频或文件</label><input type="file" name="file" required>
+        <div class="hint" data-i18n="fileHint">可选合同、单据、PDF、Word、图片或短视频。</div>
+      </div>
+      <div class="field"><label data-i18n="noteOptional">说明（可不填）</label><input name="note" placeholder="例如：装车现场、合同扫描件、砍伐进度"></div>
+      <div class="actions"><button class="btn" type="submit" data-i18n="saveLocal">保存到本地</button><button class="btn ghost" type="button" data-close="mediaDialog" data-i18n="cancel">取消</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="modal-wrap" id="moreDialog">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moreDialogTitle">
+    <h2 id="moreDialogTitle" data-i18n="settings">设置</h2>
+
+    <div class="field" style="margin-bottom:14px">
+      <label data-i18n="langLabel">语言 / Language</label>
+      <div class="seg" id="langSeg">
+        <button type="button" class="seg-btn" data-lang="zh">中文</button>
+        <button type="button" class="seg-btn" data-lang="en">English</button>
+      </div>
+      <div class="hint" data-i18n="langHint">切换后界面文字立即更新，并记住你的选择。</div>
+    </div>
+
+    <div class="list">
+      <button class="item" id="themeBtn"><span data-i18n="themeBtn">浅色 / 深色模式</span><span class="seg-btn" style="flex:none;min-width:0;padding:4px 10px" data-i18n="switchWord">切换</span></button>
+      <button class="item" id="paletteBtn"><span data-i18n="paletteBtn">强调颜色</span><span>◐</span></button>
+      <button class="item" id="exportBtn"><span data-i18n="exportBackup">导出备份（含照片 / 文件）</span><span>↓</span></button>
+      <button class="item" id="importBtn"><span data-i18n="importBackup">导入备份</span><span>↑</span></button>
+      <button class="item" id="printBtn"><span data-i18n="printLedger">打印账本</span><span>▤</span></button>
+      <button class="item" id="csvBtn"><span data-i18n="csvExport">导出表格（Excel 可打开）</span><span>▥</span></button>
+      <button class="item" id="profileBtn"><span data-i18n="profileBtn">经营者信息</span><span>→</span></button>
+    </div>
+
+    <h3 data-i18n="storageSec">存储与安全</h3>
+    <div class="notice" id="storageNotice" data-i18n="storageReading">正在读取存储占用…</div>
+    <div class="storage-bar"><div class="storage-fill" id="storageFill" style="width:0%"></div></div>
+    <div class="hint" id="storageHint"></div>
+    <div class="notice warn" style="margin-top:10px" data-i18n="storageWarn">本地浏览器存储并不等于永久保存：清理浏览数据、切换设备或存储超限都可能造成数据丢失。请在重要节点手动导出备份，并把备份存到与记账设备分开的位置（如 U 盘、网盘）。</div>
+
+    <input id="accentPicker" type="color" value="#16634c" hidden>
+    <input id="importFile" type="file" accept=".json,application/json" hidden>
+    <div class="actions"><button class="btn ghost" type="button" data-close="moreDialog" data-i18n="close">关闭</button></div>
+  </div>
+</div>
+
+<!-- 关于 -->
+<div class="modal-wrap" id="aboutDialog">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle" data-i18n="appTitle">本地经营账本</h2>
+    <div class="notice" data-i18n="aboutBody">这是一个纯离线的记账工具，帮助你按地块记录收入、支出、欠款和利润。文字、照片、视频和文件都保存在本机浏览器，不上传服务器。</div>
+    <div class="list">
+      <div class="item"><span data-i18n="version">版本</span><strong>2.0.0</strong></div>
+      <div class="item"><span data-i18n="recordMode">记录方式</span><strong data-i18n="recordLocal">本机浏览器保存</strong></div>
+      <div class="item"><span data-i18n="dataSafety">数据安全</span><strong data-i18n="backupRegular">请定期导出备份</strong></div>
+      <div class="item"><span data-i18n="useCase">适用场景</span><strong data-i18n="useCaseVal">个人 / 家庭小规模经营记账</strong></div>
+    </div>
+    <div class="notice warn" style="margin-top:10px" data-i18n="aboutWarn">本工具适合个人与家庭记账参考，不替代会计或法律凭证。涉及欠款争议的正式凭证，请另行签署书面合同并妥善保管。</div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="aboutDialog" data-i18n="close">关闭</button></div>
+  </div>
+</div>
+
+<!-- 导入方式选择 -->
+<div class="modal-wrap" id="importDialog">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importDialogTitle">
+    <h2 id="importDialogTitle" data-i18n="importTitle">选择导入方式</h2>
+    <div class="notice" data-i18n="importNote">导入前会先自动导出一份当前账目作为兜底备份。</div>
+    <div class="list">
+      <button class="item" id="importMergeBtn"><div style="text-align:left"><div class="item-title" data-i18n="importMerge">合并导入</div><div class="item-sub" data-i18n="importMergeSub">保留现有账目，按记录去重后并入</div></div><span>＋</span></button>
+      <button class="item" id="importOverwriteBtn"><div style="text-align:left"><div class="item-title" data-i18n="importOverwrite">覆盖导入</div><div class="item-sub" data-i18n="importOverwriteSub">清空现有账目，仅保留备份内容</div></div><span>⇄</span></button>
+    </div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="importDialog" data-i18n="cancel">取消</button></div>
+  </div>
+</div>
+
+<!-- 查看大图 / 播放视频 / 打开文件 -->
+<div class="modal-wrap" id="mediaViewer">
+  <div class="modal" role="dialog" aria-modal="true" style="width:min(880px,100%)">
+    <div class="actions" style="justify-content:space-between;margin:0 0 10px"><strong id="mediaViewerTitle">查看</strong><button class="btn ghost" type="button" id="viewerCloseBtn" data-i18n="close">关闭</button></div>
+    <div id="mediaViewerBody"></div>
+  </div>
+</div>
+<script>
+/* =========================================================================
+   本地经营账本 v2.0.0 —— 纯离线单文件
+   数据保存在本机浏览器（localStorage + IndexedDB），不上传服务器。
+   ========================================================================= */
+
+/* ---------- 安全存储封装（localStorage 可能被禁用或超限） ---------- */
+const memoryStorage = {};
+function safeGet(k){
+  try{ return localStorage.getItem(k); }
+  catch(e){ return Object.prototype.hasOwnProperty.call(memoryStorage,k) ? memoryStorage[k] : null; }
+}
+function safeSet(k,v){
+  try{ localStorage.setItem(k,v); return true; }
+  catch(e){ memoryStorage[k]=v; return false; }
+}
+function safeRemove(k){
+  try{ localStorage.removeItem(k); }
+  catch(e){ delete memoryStorage[k]; }
+}
+function storageAvailable(){
+  try{ const k='__t__'; localStorage.setItem(k,'1'); localStorage.removeItem(k); return true; }
+  catch(e){ return false; }
+}
+
+/* ---------- 语言（i18n） ---------- */
+const I18N = {
+  zh:{
+    appTitle:'本地经营账本', appSub:'记录地块的收入、支出、欠款和利润，数据只存在本机浏览器',
+    settings:'设置', plots:'地块', plotsNote:'每笔账都归属到一块地，分地块统计，账目才不会混。',
+    newPlot:'新建地块', noPlot:'还没有地块<br>先新建第一块地', noPlotTitle:'先建立第一块地',
+    noPlotBody:'地块可以是杉木林地、工程或运输单对应的项目。',
+    newFirstPlot:'新建第一块地', openSettings:'打开设置',
+    tabHome:'首页', tabAdd:'记一笔', tabAccount:'查账', tabMedia:'资料', tabProfile:'经营者信息',
+    addHubTitle:'记一笔', addHubNote:'只选你现在要记的事情，保存后自动计入当前地块。',
+    addExpense:'记支出', addExpenseSub:'油费、材料、办证、维修等',
+    addWage:'记工人工资', addWageSub:'砍伐、搬运等人工费',
+    addFreight:'记卡车运费', addFreightSub:'拉运木材的外雇车费',
+    addIncome:'记收入', addIncomeSub:'卖木收款、退款、补贴',
+    addFile:'存资料', addFileSub:'保存照片、视频或文件，留作凭证',
+    invested:'已投入', receivable:'应收总额', bookProfit:'账面盈亏', cashIn:'实际到手', cashProfit:'实际盈亏', pending:'待收尾款',
+    hintInvested:'已付的现钱合计', hintReceivable:'卖木应收（不含退款/补贴）', hintBook:'应收 − 应付成本',
+    hintCashIn:'实际到账金额', hintCashProfit:'实收 − 已付', hintPending:'卖木尚未收到的尾款',
+    costBreak:'投入构成', incomeVsCost:'收入与成本对比', perMu:'每亩成本', area:'面积', mu:'亩',
+    investDetail:'投入明细', yearSummary:'本年小结', yearIn:'今年已收', yearOut:'今年已付', yearNet:'今年结余',
+    contract:'合同与手续', owner:'山主', signDate:'签约', expireDate:'到期',
+    quickAdd:'快速记账',
+    oweWork:'还欠工人 / 运输 / 机械 {v}（未付金额计入账面盈亏，不计入实际盈亏）',
+    explainBook:'账面盈亏 = 应收 − 应付（含未付给工人的钱）；实际盈亏 = 实收 − 已付（只算现金）。定金若可退，退回时记一笔“退款 / 其他收入”。',
+    yearNote:'本年小结只统计填了日期的收支；承包款、定金如未填日期则不计入。',
+    pickMonth:'选择月份', thisMonth:'本月', monthSpend:'支出', monthIn:'已收', monthNet:'结余',
+    projInvested:'项目已投入', projInvestedSub:'已付的承包款、定金、支出、工资、运输和机械',
+    projReceivable:'项目应收总额', projReceivableSub:'卖木应收（退款、补贴不计入）',
+    projBook:'项目账面盈亏', projBookSub:'应收 − 应付成本',
+    projCash:'实际到手', projCashSub:'卖木收款 + 退款 / 补贴',
+    projPending:'还没收到', projPendingSub:'卖木尾款',
+    fundChange:'资金变化',
+    calcNote:'账面盈亏 = 应收 − 应付；实际盈亏 = 实收 − 已付。软件负责准确计算，漏填或填错金额会影响结果。',
+    save:'保存', cancel:'取消', close:'关闭', back:'返回总览', edit:'修改', del:'删除', view:'查看', saveEdit:'保存修改', cancelEdit:'取消修改',
+    date:'日期', amount:'金额', whereSpend:'花在什么地方', note:'说明', noteOptional:'说明（可不填）',
+    editExpense:'修改支出', addExpenseTitle:'记一笔支出',
+    belongsTo:'这笔钱属于“{name}”，保存后自动计入该地块。',
+    allExpense:'全部支出', noExpense:'还没有支出',
+    wageTitle:'记工资 / 运输 / 机械 / 其他', editWage:'修改记录',
+    payName:'这笔钱叫什么', payNameHint:'可自由填写，或点右侧选择',
+    classifyTo:'归到哪类', catAuto:'（一般自动判断，也可自己点）',
+    catWage:'工资', catFreight:'运费', catOther:'机械 / 其他',
+    person:'姓名', personTruck:'车主 / 司机', personWorker:'工人姓名', personPlaceholder:'可重复填写同一个人或车主',
+    role:'工种 / 去向', rolePlaceholder:'砍伐、搬运、运往某工厂', plate:'车牌', plateOptional:'选填',
+    amountDue:'应付金额', amountPaid:'已付金额', payMode:'结算方式', quantity:'数量（可选）', quantityPlaceholder:'天数、车次或方量',
+    allRecords:'全部记录', noRecords:'还没有记录', owe:'还欠', settled:'已结清',
+    incomeTitle:'记收入', editIncome:'修改记录',
+    incomeWhat:'这笔收入是什么', incomeWhatHint:'可自由填写，或点右侧选择',
+    buyer:'收购方 / 工厂', buyerPlaceholder:'谁收了这批木材', trailerPlate:'挂车车牌',
+    volume:'方量', volumePlaceholder:'方', unitPrice:'单价', unitPlaceholder:'元/方',
+    calcTip:'填了方量和单价会自动算出应收总价，也可手动修改。',
+    totalDue:'本车应收总价', totalAmount:'金额', received:'已收到',
+    incomeRecords:'收入记录', noIncome:'还没有收入记录',
+    mediaTitle:'现场照片、视频和文件', mediaNote:'记录合同、砍伐、装车、交货现场，也能存合同、单据、PDF 等文件。都留在本机，不会上传。',
+    addMedia:'添加照片 / 视频 / 文件', noMedia:'还没有照片、视频或文件', noNote:'无说明',
+    profTitle:'经营者信息', profNote:'用于打印 / 导出表格的表头，也会随备份一起保存。只存在本机，不上传。',
+    profName:'姓名 / 单位', profNamePh:'例如：张三', profPhone:'电话', profAddr:'经营地址', profAddrPh:'村、镇或地址', profRemark:'备注',
+    saveInfo:'保存信息',
+    importTitle:'选择导入方式', importNote:'导入前会先自动导出一份当前账目作为兜底备份。',
+    importMerge:'合并导入', importMergeSub:'保留现有账目，按记录去重后并入',
+    importOverwrite:'覆盖导入', importOverwriteSub:'清空现有账目，仅保留备份内容',
+    confirmDelPlot:'删除这块地及其支出、工资、运输、收入、媒体和文件？此操作不可撤销。',
+    confirmDelRec:'确定删除这条记录吗？',
+    confirmDelMedia:'确定删除这个文件吗？',
+    saved:'已保存',
+    errFileSize:'文件过大（超过 20MB）。建议先压缩，或改用更小的视频 / 图片。',
+    errSaveFile:'保存失败：浏览器空间不足或文件过大。请先导出备份，再清理空间后重试。',
+    errPaidOver:'已付金额不能超过应付金额，请检查后再保存。',
+    errRecvOver:'已收到不能超过应收总价，请检查后再保存。',
+    errPickPlot:'请先选择一块地',
+    errNotFound:'找不到这个文件，可能已被删除或当时未保存成功。',
+    storageReading:'正在读取存储占用…',
+    storageUsed:'已用约 {used}，浏览器通常分配上限约 {quota}。',
+    storageLow:'存储接近上限，请尽快导出备份并清理不必要的大文件。',
+    langLabel:'语言 / Language', langHint:'切换后界面文字立即更新，并记住你的选择。',
+    themeBtn:'浅色 / 深色模式', paletteBtn:'强调颜色',
+    exportBackup:'导出备份（含照片 / 文件）', importBackup:'导入备份', printLedger:'打印账本',
+    csvExport:'导出表格（Excel 可打开）', profileBtn:'经营者信息',
+    storageSec:'存储与安全',
+    storageWarn:'本地浏览器存储并不等于永久保存：清理浏览数据、切换设备或存储超限都可能造成数据丢失。请在重要节点手动导出备份，并把备份存到与记账设备分开的位置（如 U 盘、网盘）。',
+    aboutBody:'这是一个纯离线的记账工具，帮助你按地块记录收入、支出、欠款和利润。文字、照片、视频和文件都保存在本机浏览器，不上传服务器。',
+    version:'版本', recordMode:'记录方式', dataSafety:'数据安全', useCase:'适用场景',
+    recordLocal:'本机浏览器保存', backupRegular:'请定期导出备份', useCaseVal:'个人 / 家庭小规模经营记账',
+    aboutWarn:'本工具适合个人与家庭记账参考，不替代会计或法律凭证。涉及欠款争议的正式凭证，请另行签署书面合同并妥善保管。',
+    backupBannerNever:'你还没有备份过账本，建议现在备份一份', backupBannerDays:'距上次备份已 {d} 天，建议尽快备份，防止数据丢失',
+    backupNow:'立即备份', later:'稍后再说',
+    backupDone:'备份已导出（文字、照片、视频和文件都包含在内）', backupDoneTitle:'备份完成',
+    backupChecksum:'备份文件带校验码，导入时会自动核对完整性。',
+    importInvalid:'文件不是有效的备份', importIncomplete:'备份文件结构不完整，已取消导入',
+    importOk:'导入完成', importChecksumBad:'注意：备份校验码不一致，文件可能已损坏或被改动，请核对数据后再使用。',
+    csvNote:'导出的表格不含照片 / 文件附件，附件请用“导出备份”保存。',
+    areaTerm:'面积 / 年限', purchaseTotal:'承包款总额', depositPaid:'已付定金', paidPrincipal:'已付承包款（不含定金）',
+    purchaseNote:'承包款备注', noPurchaseNote:'还没有补充说明', purchaseHint:'未付承包款 = 承包款总额 − 已付定金 − 已付承包款。定金已包含在承包款总额中，不会重复计算。',
+    unpaidPurchase:'未付承包款', termY:'承包年限（年）', termPh:'例如：30', expirePh:'留空则按签约日 + 年限自动推算',
+    statusHint:'固定选项，方便按状态筛选和统计。',
+    plotName:'地块名称', plotNamePh:'例如：那马山一号', location:'地点', locationPh:'村、屯或山名', contractNo:'合同编号', contractNote:'合同 / 手续备注',
+    purchaseMoney:'承包款与定金',
+    savePlot:'保存地块', editPlot:'修改地块',
+    mediaDialogTitle:'添加照片、视频或文件',
+    mediaNote2:'文件保存在这台设备的浏览器里，不会上传服务器。单个文件建议不超过 20MB；本地存储有容量上限，请配合定期导出备份使用。',
+    chooseFile:'选择照片、视频或文件', fileHint:'可选合同、单据、PDF、Word、图片或短视频。',
+    saveLocal:'保存到本地',
+    allocate:'多地块分摊', allocateHint:'跨地块的公共支出（如运输、雇工）可按比例分摊到多块地。',
+    allocEqual:'平均分摊', allocCustom:'按金额分摊', allocTo:'分摊到', pickPlots:'勾选要分摊的地块',
+    splitTotal:'分摊合计', splitMustEqual:'各分摊金额合计必须等于支出总额',
+    month:'月', year:'年', noData:'暂无数据',
+    switchWord:'切换', stTodo:'待开发', stPending:'待采伐', stCutting:'正在采伐', stDone:'采伐完毕', stPaid:'已回款'
+  },
+  en:{
+    appTitle:'Local Ledger', appSub:'Track income, expenses, debts and profit per plot. All data stays in this browser.',
+    settings:'Settings', plots:'Plots', plotsNote:'Every entry belongs to a plot, so each project keeps its own books.',
+    newPlot:'New plot', noPlot:'No plots yet<br>Create your first one', noPlotTitle:'Create your first plot',
+    noPlotBody:'A plot can be a timber stand, a works project, or a haulage job.',
+    newFirstPlot:'Create first plot', openSettings:'Open settings',
+    tabHome:'Home', tabAdd:'Add entry', tabAccount:'Review', tabMedia:'Files', tabProfile:'Operator',
+    addHubTitle:'Add an entry', addHubNote:'Pick only what you want to record now; it is saved to the current plot.',
+    addExpense:'Expense', addExpenseSub:'Fuel, materials, permits, repairs',
+    addWage:'Wages', addWageSub:'Cutting, hauling and other labour',
+    addFreight:'Truck freight', addFreightSub:'External truck fees',
+    addIncome:'Income', addIncomeSub:'Timber sales, refunds, subsidies',
+    addFile:'Files', addFileSub:'Save photos, videos or documents as evidence',
+    invested:'Invested', receivable:'Total receivable', bookProfit:'Book profit', cashIn:'Cash received', cashProfit:'Cash profit', pending:'Outstanding',
+    hintInvested:'Total cash paid out', hintReceivable:'Timber receivable (excl. refunds/subsidies)', hintBook:'Receivable − payable cost',
+    hintCashIn:'Amount actually received', hintCashProfit:'Received − paid', hintPending:'Timber still to be collected',
+    costBreak:'Cost breakdown', incomeVsCost:'Income vs cost', perMu:'Cost per mu', area:'Area', mu:'mu',
+    investDetail:'Cost details', yearSummary:'This year', yearIn:'Received', yearOut:'Paid', yearNet:'Net',
+    contract:'Contract & paperwork', owner:'Owner', signDate:'Signed', expireDate:'Expires',
+    quickAdd:'Quick add',
+    oweWork:'Owed to workers / trucks / machinery {v} (unpaid is in book profit, not cash profit)',
+    explainBook:'Book profit = receivable − payable (incl. unpaid wages); cash profit = received − paid (cash only). If a deposit is refundable, record a "refund / other income" when it returns.',
+    yearNote:'The yearly summary only counts entries with a date; purchase price and deposit without a date are excluded.',
+    pickMonth:'Month', thisMonth:'This month', monthSpend:'Spent', monthIn:'Received', monthNet:'Net',
+    projInvested:'Project invested', projInvestedSub:'Paid purchase price, deposit, expenses, wages, freight, machinery',
+    projReceivable:'Project receivable', projReceivableSub:'Timber receivable (refunds/subsidies excluded)',
+    projBook:'Project book profit', projBookSub:'Receivable − payable cost',
+    projCash:'Cash received', projCashSub:'Timber sales + refunds / subsidies',
+    projPending:'Not yet received', projPendingSub:'Timber balance',
+    fundChange:'Cash movement',
+    calcNote:'Book profit = receivable − payable; cash profit = received − paid. The app calculates accurately, but missing or wrong amounts affect the result.',
+    save:'Save', cancel:'Cancel', close:'Close', back:'Back to overview', edit:'Edit', del:'Delete', view:'View', saveEdit:'Save changes', cancelEdit:'Discard changes',
+    date:'Date', amount:'Amount', whereSpend:'Spent on', note:'Note', noteOptional:'Note (optional)',
+    editExpense:'Edit expense', addExpenseTitle:'Add an expense',
+    belongsTo:'This belongs to "{name}" and is saved to that plot.',
+    allExpense:'All expenses', noExpense:'No expenses yet',
+    wageTitle:'Wages / freight / machinery / other', editWage:'Edit record',
+    payName:'What is this for', payNameHint:'Free text, or choose on the right',
+    classifyTo:'Category', catAuto:'  (auto-detected, can be changed)',
+    catWage:'Wages', catFreight:'Freight', catOther:'Machinery / other',
+    person:'Name', personTruck:'Owner / driver', personWorker:'Worker name', personPlaceholder:'The same person can be repeated',
+    role:'Job / destination', rolePlaceholder:'Cutting, hauling, to a mill', plate:'Plate', plateOptional:'optional',
+    amountDue:'Amount due', amountPaid:'Amount paid', payMode:'Payment mode', quantity:'Quantity (optional)', quantityPlaceholder:'days, trips or m³',
+    allRecords:'All records', noRecords:'No records yet', owe:'Owed', settled:'Settled',
+    incomeTitle:'Add income', editIncome:'Edit record',
+    incomeWhat:'What is this income', incomeWhatHint:'Free text, or choose on the right',
+    buyer:'Buyer / mill', buyerPlaceholder:'Who bought this load', trailerPlate:'Trailer plate',
+    volume:'Volume', volumePlaceholder:'m³', unitPrice:'Unit price', unitPlaceholder:'¥/m³',
+    calcTip:'Volume × unit price fills the total automatically; you can still edit it.',
+    totalDue:'Load total', totalAmount:'Amount', received:'Received',
+    incomeRecords:'Income records', noIncome:'No income records yet',
+    mediaTitle:'Site photos, videos and documents', mediaNote:'Record contracts, felling, loading and delivery; store contracts, receipts, PDFs too. All stay on this device.',
+    addMedia:'Add photo / video / document', noMedia:'No photos, videos or documents yet', noNote:'No note',
+    profTitle:'Operator information', profNote:'Used in the print / export header and saved with backups. Stored locally only.',
+    profName:'Name / company', profNamePh:'e.g. John Smith', profPhone:'Phone', profAddr:'Business address', profAddrPh:'Village, town or address', profRemark:'Remark',
+    saveInfo:'Save info',
+    importTitle:'Choose import mode', importNote:'A safety copy of the current ledger is exported first.',
+    importMerge:'Merge', importMergeSub:'Keep existing entries, de-duplicate and merge',
+    importOverwrite:'Overwrite', importOverwriteSub:'Clear existing entries, keep only the backup',
+    confirmDelPlot:'Delete this plot and all its expenses, wages, freight, income, media and files? This cannot be undone.',
+    confirmDelRec:'Delete this record?',
+    confirmDelMedia:'Delete this file?',
+    saved:'Saved',
+    errFileSize:'File too large (over 20MB). Please compress it or use a smaller video / image.',
+    errSaveFile:'Save failed: not enough browser storage or file too large. Export a backup, then free space and retry.',
+    errPaidOver:'Amount paid cannot exceed amount due. Please check and save again.',
+    errRecvOver:'Received cannot exceed the total. Please check and save again.',
+    errPickPlot:'Please select a plot first',
+    errNotFound:'File not found. It may have been deleted or was not saved successfully.',
+    storageReading:'Reading storage usage…',
+    storageUsed:'About {used} used; the browser typically allows around {quota}.',
+    storageLow:'Storage is nearly full. Export a backup and remove large files soon.',
+    langLabel:'语言 / Language', langHint:'The interface updates instantly and your choice is remembered.',
+    themeBtn:'Light / dark mode', paletteBtn:'Accent colour',
+    exportBackup:'Export backup (incl. photos / files)', importBackup:'Import backup', printLedger:'Print ledger',
+    csvExport:'Export sheet (opens in Excel)', profileBtn:'Operator information',
+    storageSec:'Storage & safety',
+    storageWarn:'Browser storage is not permanent: clearing browsing data, changing device, or exceeding the quota can lose your data. Export a backup at key moments and keep it on a separate device (USB drive, cloud).',
+    aboutBody:'An offline ledger to record income, expenses, debts and profit per plot. Text, photos, videos and files stay in this browser and are never uploaded.',
+    version:'Version', recordMode:'Storage', dataSafety:'Data safety', useCase:'Best for',
+    recordLocal:'Saved in this browser', backupRegular:'Export backups regularly', useCaseVal:'Personal / small family business',
+    aboutWarn:'For personal and family bookkeeping reference only; not a substitute for accounting or legal evidence. For disputed debts, sign a written contract and keep it safely.',
+    backupBannerNever:'You have not backed up yet — export a backup now', backupBannerDays:'{d} days since your last backup — export one soon to avoid data loss',
+    backupNow:'Back up now', later:'Later',
+    backupDone:'Backup exported (text, photos, videos and files included)', backupDoneTitle:'Backup complete',
+    backupChecksum:'The backup carries a checksum verified automatically on import.',
+    importInvalid:'Not a valid backup file', importIncomplete:'Backup structure incomplete; import cancelled',
+    importOk:'Import complete', importChecksumBad:'Note: the backup checksum does not match — the file may be corrupt or altered. Please verify your data.',
+    csvNote:'The exported sheet does not include photo / file attachments; use "Export backup" for those.',
+    areaTerm:'Area / term', purchaseTotal:'Purchase price', depositPaid:'Deposit paid', paidPrincipal:'Principal paid (excl. deposit)',
+    purchaseNote:'Purchase note', noPurchaseNote:'No note yet', purchaseHint:'Unpaid purchase = total − deposit − principal paid. The deposit is part of the total, so it is never double-counted.',
+    unpaidPurchase:'Unpaid purchase', termY:'Term (years)', termPh:'e.g. 30', expirePh:'Leave blank to auto-calc from sign date + term',
+    statusHint:'Fixed options make filtering and totals reliable.',
+    plotName:'Plot name', plotNamePh:'e.g. Nama Hill No.1', location:'Location', locationPh:'Village, hamlet or hill', contractNo:'Contract no.', contractNote:'Contract / note',
+    purchaseMoney:'Purchase price & deposit',
+    savePlot:'Save plot', editPlot:'Edit plot',
+    mediaDialogTitle:'Add photo, video or document',
+    mediaNote2:'Files stay in this device browser and are never uploaded. Keep each file under 20MB; local storage is limited, so back up regularly.',
+    chooseFile:'Choose photo, video or document', fileHint:'Contracts, receipts, PDFs, Word, images or short videos.',
+    saveLocal:'Save to this device',
+    allocate:'Allocate across plots', allocateHint:'Shared costs (freight, hired labour) can be split across several plots.',
+    allocEqual:'Split equally', allocCustom:'Split by amount', allocTo:'Split to', pickPlots:'Tick plots to include',
+    splitTotal:'Allocated total', splitMustEqual:'Allocated amounts must sum to the expense total',
+    month:'month', year:'year', noData:'No data',
+    switchWord:'Switch', stTodo:'To develop', stPending:'To fell', stCutting:'Felling', stDone:'Felled', stPaid:'Paid'
+  }
+};
+let LANG = safeGet('shanmu-lang') || 'zh';
+function t(k, vars){
+  let s = (I18N[LANG] && I18N[LANG][k]) || I18N.zh[k] || k;
+  if(vars){ for(const key in vars){ s = s.replace('{'+key+'}', vars[key]); } }
+  return s;
+}
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.setAttribute('title', t(el.getAttribute('data-i18n-title'))); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+}
+function setLang(l){
+  LANG = (l==='en') ? 'en' : 'zh';
+  safeSet('shanmu-lang', LANG);
+  document.documentElement.lang = LANG==='en' ? 'en' : 'zh-CN';
+  applyI18n();
+  const bEl=document.getElementById('backupBannerText');
+  const last=Number(safeGet('shanmu-last-backup')||0);
+  if(bEl){ const days=last?Math.floor((Date.now()-last)/86400000):999; bEl.textContent = last?t('backupBannerDays',{d:days}):t('backupBannerNever'); }
+  render();
+}
+
+/* ---------- 数据 ---------- */
+const KEY = 'shanmu-ledger-v1';
+let dbData = loadData();
+let selectedId = dbData.plots[0] ? dbData.plots[0].id : null;
+let view = 'home';
+let editingId = null, editingKind = null, editingPlotId = null, workKind = 'worker';
+let accMonth = 'cur';
+let idb = null;
+let pendingImport = null;
+const objectUrls = new Set();
+
+const $ = s => document.querySelector(s);
+const money = n => '¥' + Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const num = n => Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function today(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function id(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
+function stamp(){ return new Date().toISOString(); }
+function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function humanSize(n){ if(!n||n<1024) return n?n+'B':''; if(n<1048576) return (n/1024).toFixed(1)+'KB'; return (n/1048576).toFixed(1)+'MB'; }
+
+function loadData(){
+  const empty = { plots:[], expenses:[], workers:[], trucks:[], other:[], sales:[], media:[], profile:{} };
+  try{
+    const raw = safeGet(KEY);
+    const d = raw ? JSON.parse(raw) : {};
+    return { plots:d.plots||[], expenses:d.expenses||[], workers:d.workers||[], trucks:d.trucks||[], other:d.other||[], sales:d.sales||[], media:d.media||[], profile:d.profile||{} };
+  }catch(e){ return empty; }
+}
+function save(){
+  const ok = safeSet(KEY, JSON.stringify(dbData));
+  if(!ok){ alert(t('errSaveFile')); }
+  render();
+}
+function plot(){ return dbData.plots.find(x=>x.id===selectedId); }
+
+/* 单条支出对某地块的金额（支持分摊） */
+function expenseTo(rec, pid){
+  if(rec.alloc && rec.alloc.length){
+    return rec.alloc.filter(a=>a.plotId===pid).reduce((s,a)=>s+Number(a.amount||0),0);
+  }
+  return rec.plotId===pid ? Number(rec.amount||0) : 0;
+}
+function sumArr(arr, field, pid){ return dbData[arr].filter(x=>x.plotId===pid).reduce((a,x)=>a+Number(x[field]||0),0); }
+function expenseSum(pid){ return dbData.expenses.reduce((s,x)=>s+expenseTo(x,pid),0); }
+
+/* 核心计算（已修正定金/承包款重复计算问题） */
+function sums(p){
+  const ex = expenseSum(p.id);
+  const woPaid = sumArr('workers','paid',p.id);
+  const woDue  = sumArr('workers','amount',p.id);
+  const trPaid = sumArr('trucks','paid',p.id);
+  const trDue  = sumArr('trucks','amount',p.id);
+  const otPaid = sumArr('other','paid',p.id);
+  const otDue  = sumArr('other','amount',p.id);
+
+  const purchase = Number(p.purchase||0);
+  const deposit = Number(p.deposit||0);
+  const paidPrincipal = Number(p.paidPrincipal||0);
+  const purchasePaid = deposit + paidPrincipal;
+  const purchaseDue = Math.max(0, purchase - purchasePaid);
+
+  const saleRows = dbData.sales.filter(x=>x.plotId===p.id);
+  const income = saleRows.filter(x=>!isRefundType(x.stype)).reduce((a,x)=>a+Number(x.total||0),0);
+  const received = saleRows.reduce((a,x)=>a+Number(x.received||0),0);
+  const due = saleRows.filter(x=>!isRefundType(x.stype)).reduce((a,x)=>a+Math.max(0,Number(x.total||0)-Number(x.received||0)),0);
+
+  const paidCost = ex + purchasePaid + woPaid + trPaid + otPaid;   // 实际付出的现金
+  const dueCost  = ex + purchase + woDue + trDue + otDue;          // 应计成本（含未付）
+  const oweWork  = (woDue-woPaid)+(trDue-trPaid)+(otDue-otPaid);
+  const area = Number(p.area||0);
+  return {
+    paidCost, dueCost, ex, wo:woPaid, woDue, tr:trPaid, trDue, ot:otPaid, otDue,
+    purchase, deposit, paidPrincipal, purchasePaid, purchaseDue,
+    income, received, due, oweWork, area,
+    perMu: area>0 ? dueCost/area : null,
+    profit: income - dueCost,
+    cashProfit: received - paidCost
+  };
+}
+
+/* ---------- 弹窗 ---------- */
+function openModal(w){ if(typeof w==='string') w=document.getElementById(w); if(w) w.classList.add('open'); }
+function closeModal(w){ if(typeof w==='string') w=document.getElementById(w); if(w) w.classList.remove('open'); }
+document.addEventListener('click', e=>{
+  const c = e.target.closest('[data-close]');
+  if(c){ closeModal(c.getAttribute('data-close')); }
+});
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.modal-wrap').forEach(w=>{
+    w.addEventListener('click',ev=>{ if(ev.target===w){ if(w.id==='mediaViewer') closeViewer(); else w.classList.remove('open'); } });
+  });
+  document.addEventListener('keydown',ev=>{
+    if(ev.key==='Escape'){
+      if(document.getElementById('mediaViewer').classList.contains('open')) closeViewer();
+      document.querySelectorAll('.modal-wrap.open').forEach(w=>w.classList.remove('open'));
+    }
+  });
+});
+
+/* ---------- 渲染 ---------- */
+function tabOn(name){
+  if(name==='home') return view==='home'?'on':'';
+  if(name==='add') return ['add','expense','work','sale'].includes(view)?'on':'';
+  if(name==='account') return view==='account'?'on':'';
+  if(name==='media') return view==='media'?'on':'';
+  return '';
+}
+function render(){
+  const list = document.getElementById('plotList');
+  list.innerHTML = dbData.plots.length
+    ? dbData.plots.map(p=>{
+        const s = sums(p);
+        const sub = esc(p.location||'') || (LANG==='en'?'No location':'未填地点');
+        return '<div class="item '+(p.id===selectedId?'active':'')+'">'+
+          '<div onclick="selectedId=\''+p.id+'\';view=\'home\';render()" style="flex:1;cursor:pointer;min-width:0">'+
+            '<div class="item-title">'+esc(p.name)+'</div>'+
+            '<div class="item-sub">'+esc(sub)+' · '+esc(p.status||'')+(s.area>0?' · '+num(s.area)+t('mu'):'')+'</div>'+
+          '</div>'+
+          '<div class="item-actions">'+
+            '<button class="icon-btn" onclick="selectedId=\''+p.id+'\';view=\'home\';render()">'+t('view')+'</button>'+
+            '<button class="icon-btn" onclick="editPlot(\''+p.id+'\')">'+t('edit')+'</button>'+
+            '<button class="icon-btn" onclick="removePlot(\''+p.id+'\')">'+t('del')+'</button>'+
+          '</div></div>';
+      }).join('')
+    : '<div class="empty">'+t('noPlot')+'</div>';
+
+  const p = plot();
+  const mainEl = document.getElementById('main');
+  if(p){
+    mainEl.innerHTML = mainHtml(p);
+  } else if(view==='profile'){
+    mainEl.innerHTML = tabsHtml()+profileView();
+  } else {
+    mainEl.innerHTML = '<div class="empty"><h2>'+t('noPlotTitle')+'</h2><p>'+t('noPlotBody')+'</p>'+
+      '<div class="actions" style="justify-content:center"><button class="btn" onclick="openModal(\'plotDialog\')">'+t('newFirstPlot')+'</button>'+
+      '<button class="btn ghost" onclick="openModal(\'moreDialog\')">'+t('openSettings')+'</button></div></div>';
+  }
+  if(view==='media') loadMedia();
+}
+function tabsHtml(){
+  return '<div class="tabs">'+
+    '<button class="tab '+tabOn('home')+'" onclick="view=\'home\';render()">'+t('tabHome')+'</button>'+
+    '<button class="tab '+tabOn('add')+'" onclick="view=\'add\';render()">'+t('tabAdd')+'</button>'+
+    '<button class="tab '+tabOn('account')+'" onclick="view=\'account\';render()">'+t('tabAccount')+'</button>'+
+    '<button class="tab '+tabOn('media')+'" onclick="view=\'media\';render()">'+t('tabMedia')+'</button>'+
+  '</div>';
+}
+function mainHtml(p){
+  const content =
+      view==='home'    ? overview(p)
+    : view==='add'     ? addHub(p)
+    : view==='account' ? accountingView(p)
+    : view==='media'   ? mediaView(p)
+    : view==='profile' ? profileView()
+    : view==='expense' ? expenseForm(p)
+    : view==='work'    ? workForm(p)
+    : view==='sale'    ? saleForm(p)
+    : overview(p);
+  return tabsHtml()+content;
+}
+
+/* ---------- 首页总览 ---------- */
+function barRow(label, value, max, alt){
+  const pct = max>0 ? Math.max(2, Math.round(value/max*100)) : 0;
+  return '<div class="bar-row"><span class="item-sub">'+esc(label)+'</span>'+
+    '<div class="bar-track"><div class="bar-fill'+(alt?' alt':'')+'" style="width:'+pct+'%"></div></div>'+
+    '<span class="num">'+money(value)+'</span></div>';
+}
+function overview(p){
+  const s = sums(p);
+  const y = new Date().getFullYear();
+  const inYear = dbData.sales.filter(x=>x.plotId===p.id && String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.received||0),0);
+  const outYear = dbData.expenses.reduce((a,x)=>a+ (String(x.date||'').startsWith(String(y)) && (x.plotId===p.id || (x.alloc||[]).some(al=>al.plotId===p.id)) ? expenseTo(x,p.id) : 0),0)
+    + dbData.workers.filter(x=>x.plotId===p.id&&String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.paid||0),0)
+    + dbData.trucks.filter(x=>x.plotId===p.id&&String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.paid||0),0)
+    + dbData.other.filter(x=>x.plotId===p.id&&String(x.date||'').startsWith(String(y))).reduce((a,x)=>a+Number(x.paid||0),0);
+
+  const costMax = Math.max(s.ex, s.purchase, s.wo, s.tr, s.ot, 1);
+  const vsMax = Math.max(s.income, s.dueCost, 1);
+  const costBars =
+      barRow(t('addExpense'), s.ex, costMax)
+    + barRow(t('addWage'), s.wo, costMax)
+    + barRow(t('addFreight'), s.tr, costMax)
+    + barRow(t('catOther'), s.ot, costMax)
+    + barRow(t('purchaseTotal'), s.purchasePaid, costMax);
+
+  const contractBlock =
+      t('owner')+'：'+esc(p.owner||'-')+' · '+t('signDate')+'：'+esc(p.date||'-')+
+      (p.area>0?' · '+t('area')+'：'+num(p.area)+t('mu'):'')+
+      (p.expire?' · '+t('expireDate')+'：'+esc(p.expire):'')+
+      '<br>'+esc(p.note||t('noPurchaseNote'));
+
+  return '<h2>'+esc(p.name)+' <span class="badge">'+esc(p.status||'')+'</span></h2>'+
+    '<div class="item-sub">'+(esc(p.location||'-'))+' · '+t('contractNo')+'：'+esc(p.contractNo||'-')+(p.expire?' · '+t('expireDate')+'：'+esc(p.expire):'')+'</div>'+
+    '<div class="stats" style="margin-top:14px">'+
+      '<div class="stat"><span>'+t('invested')+'</span><b class="num">'+money(s.paidCost)+'</b><div class="hint">'+t('hintInvested')+'</div></div>'+
+      '<div class="stat"><span>'+t('receivable')+'</span><b class="num">'+money(s.income)+'</b><div class="hint">'+t('hintReceivable')+'</div></div>'+
+      '<div class="stat '+(s.profit<0?'neg':'')+'"><span>'+t('bookProfit')+'</span><b class="num">'+money(s.profit)+'</b><div class="hint">'+t('hintBook')+'</div></div>'+
+    '</div>'+
+    '<div class="stats" style="margin-top:10px">'+
+      '<div class="stat"><span>'+t('cashIn')+'</span><b class="num">'+money(s.received)+'</b><div class="hint">'+t('hintCashIn')+'</div></div>'+
+      '<div class="stat '+(s.cashProfit<0?'neg':'')+'"><span>'+t('cashProfit')+'</span><b class="num">'+money(s.cashProfit)+'</b><div class="hint">'+t('hintCashProfit')+'</div></div>'+
+      '<div class="stat '+(s.due>0?'due':'')+'"><span>'+t('pending')+'</span><b class="num">'+money(s.due)+'</b><div class="hint">'+t('hintPending')+'</div></div>'+
+    '</div>'+
+    '<h3>'+t('incomeVsCost')+'</h3>'+
+    '<div class="bars">'+barRow(t('receivable'), s.income, vsMax)+barRow(t('bookProfit'), s.profit, vsMax, true)+'</div>'+
+    '<h3>'+t('costBreak')+(s.perMu!=null?' · '+t('perMu')+' '+money(s.perMu):'')+'</h3>'+
+    '<div class="bars">'+costBars+'</div>'+
+    '<h3>'+t('investDetail')+'</h3>'+
+    '<div class="notice">'+t('purchaseTotal')+' '+money(s.purchasePaid)+'（'+t('depositPaid')+' '+money(s.deposit)+' + '+t('paidPrincipal')+' '+money(s.paidPrincipal)+'） + '+t('addExpense')+' '+money(s.ex)+' + '+t('addWage')+' '+money(s.wo)+' + '+t('addFreight')+' '+money(s.tr)+' + '+t('catOther')+' '+money(s.ot)+'</div>'+
+    (s.purchaseDue>0?'<div class="notice warn" style="margin-top:6px">'+t('unpaidPurchase')+' '+money(s.purchaseDue)+'</div>':'')+
+    (s.oweWork>0?'<div class="notice warn" style="margin-top:6px">'+t('oweWork',{v:money(s.oweWork)})+'</div>':'')+
+    '<div class="notice" style="margin-top:6px">'+t('explainBook')+'</div>'+
+    '<h3>'+y+' '+t('yearSummary')+'</h3>'+
+    '<div class="stats">'+
+      '<div class="stat"><span>'+t('yearIn')+'</span><b class="num">'+money(inYear)+'</b></div>'+
+      '<div class="stat"><span>'+t('yearOut')+'</span><b class="num">'+money(outYear)+'</b></div>'+
+      '<div class="stat '+(inYear-outYear<0?'neg':'')+'"><span>'+t('yearNet')+'</span><b class="num">'+money(inYear-outYear)+'</b></div>'+
+    '</div>'+
+    '<div class="notice" style="margin-top:6px">'+t('yearNote')+'</div>'+
+    '<h3>'+t('contract')+'</h3>'+
+    '<div class="notice">'+contractBlock+'</div>'+
+    '<h3>'+t('quickAdd')+'</h3>'+
+    '<div class="actions">'+
+      '<button class="btn ghost" onclick="view=\'expense\';render()">+ '+t('addExpense')+'</button>'+
+      '<button class="btn ghost" onclick="view=\'work\';workKind=\'worker\';render()">+ '+t('addWage')+'</button>'+
+      '<button class="btn ghost" onclick="view=\'work\';workKind=\'truck\';render()">+ '+t('addFreight')+'</button>'+
+      '<button class="btn ghost" onclick="view=\'sale\';render()">+ '+t('addIncome')+'</button>'+
+      '<button class="btn ghost" onclick="openMedia(\''+p.id+'\')">+ '+t('addFile')+'</button>'+
+    '</div>';
+}
+
+/* ---------- 记一笔入口 ---------- */
+function addHub(){
+  const rows = [
+    ['expense', t('addExpense'), t('addExpenseSub')],
+    ['work:worker', t('addWage'), t('addWageSub')],
+    ['work:truck', t('addFreight'), t('addFreightSub')],
+    ['sale', t('addIncome'), t('addIncomeSub')]
+  ];
+  return '<h2>'+t('addHubTitle')+'</h2>'+
+    '<div class="notice">'+t('addHubNote')+'</div>'+
+    '<div class="list">'+
+      rows.map(r=>'<button class="item" onclick="goAdd(\''+r[0]+'\')"><div style="text-align:left"><div class="item-title">'+r[1]+'</div><div class="item-sub">'+r[2]+'</div></div><span>→</span></button>').join('')+
+      '<button class="item" onclick="openMedia(\''+(selectedId||'')+'\')"><div style="text-align:left"><div class="item-title">'+t('addFile')+'</div><div class="item-sub">'+t('addFileSub')+'</div></div><span>→</span></button>'+
+    '</div>';
+}
+function goAdd(code){
+  const parts = code.split(':');
+  if(parts[0]==='work'){ workKind = parts[1]; view='work'; }
+  else view = parts[0];
+  render();
+}
+
+/* ---------- 查账 ---------- */
+function accountingView(p){
+  const s = sums(p);
+  const now = new Date();
+  let y, m;
+  if(accMonth==='cur' || !accMonth){ y = now.getFullYear(); m = now.getMonth(); }
+  else { const parts = accMonth.split('-').map(Number); y = parts[0]; m = parts[1]-1; }
+  const monthCost = monthSum(['expenses'],'amount',p.id,y,m) + monthSum(['workers','trucks','other'],'paid',p.id,y,m);
+  const monthIn = monthSum(['sales'],'received',p.id,y,m);
+  const label = (accMonth==='cur'||!accMonth) ? (t('thisMonth')+'（'+y+t('year')+(m+1)+t('month')+'）') : (y+t('year')+(m+1)+t('month'));
+  return '<h2>'+t('tabAccount')+'</h2>'+
+    '<div class="field" style="max-width:300px;margin-bottom:12px"><label>'+t('pickMonth')+'</label><select id="monthSel">'+monthOptions()+'</select></div>'+
+    '<div class="stats">'+
+      '<div class="stat"><span>'+label+' '+t('monthSpend')+'</span><b class="num">'+money(monthCost)+'</b></div>'+
+      '<div class="stat"><span>'+label+' '+t('monthIn')+'</span><b class="num">'+money(monthIn)+'</b></div>'+
+      '<div class="stat '+(monthIn-monthCost<0?'neg':'')+'"><span>'+label+' '+t('monthNet')+'</span><b class="num">'+money(monthIn-monthCost)+'</b></div>'+
+    '</div>'+
+    '<h3>'+t('projBook')+'</h3>'+
+    '<div class="list">'+
+      statItem(t('projInvested'), t('projInvestedSub'), s.paidCost)+
+      statItem(t('projReceivable'), t('projReceivableSub'), s.income)+
+      statItem(t('projBook'), t('projBookSub'), s.profit)+
+      statItem(t('projCash'), t('projCashSub'), s.received)+
+      statItem(t('projPending'), t('projPendingSub'), s.due, s.due>0)+
+    '</div>'+
+    '<div class="notice" style="margin-top:10px">'+t('calcNote')+'</div>';
+}
+function statItem(title, sub, val, due){
+  return '<div class="item '+(due?'owner-due':'')+'"><div><div class="item-title">'+title+'</div><div class="item-sub">'+sub+'</div></div><strong class="num">'+money(val)+'</strong></div>';
+}
+function sameMonth(x,y,m){
+  const raw = x.date || x.createdAt; if(!raw) return false;
+  const d = new Date(raw); if(isNaN(d)) return false;
+  return d.getFullYear()===y && d.getMonth()===m;
+}
+function monthSum(arrs, field, pid, y, m){
+  return arrs.reduce((sum,key)=>sum+dbData[key].filter(x=>x.plotId===pid && sameMonth(x,y,m)).reduce((a,x)=>a+Number(x[field]||0),0),0);
+}
+function monthOptions(){
+  const now = new Date();
+  let opts = '<option value="cur" '+(accMonth==='cur'?'selected':'')+'>'+t('thisMonth')+'（'+now.getFullYear()+t('year')+(now.getMonth()+1)+t('month')+'）</option>';
+  for(let i=1;i<=24;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const val = d.getFullYear()+'-'+(d.getMonth()+1);
+    opts += '<option value="'+val+'" '+(accMonth===val?'selected':'')+'>'+d.getFullYear()+t('year')+(d.getMonth()+1)+t('month')+'</option>';
+  }
+  return opts;
+}
+
+/* ---------- 经营者信息 ---------- */
+function profileView(){
+  const d = dbData.profile || {};
+  return '<h2>'+t('profTitle')+'</h2>'+
+    '<div class="notice">'+t('profNote')+'</div>'+
+    '<form class="form" id="profileForm">'+
+      '<div class="row"><div class="field"><label>'+t('profName')+'</label><input name="name" value="'+esc(d.name||'')+'" placeholder="'+esc(t('profNamePh'))+'"></div>'+
+      '<div class="field"><label>'+t('profPhone')+'</label><input name="phone" value="'+esc(d.phone||'')+'"></div></div>'+
+      '<div class="field"><label>'+t('profAddr')+'</label><input name="address" value="'+esc(d.address||'')+'" placeholder="'+esc(t('profAddrPh'))+'"></div>'+
+      '<div class="field"><label>'+t('profRemark')+'</label><textarea name="note" rows="3">'+esc(d.note||'')+'</textarea></div>'+
+      '<div class="actions"><button class="btn">'+t('saveInfo')+'</button><button type="button" class="btn ghost" onclick="view=\'home\';render()">'+t('back')+'</button></div>'+
+    '</form>';
+}
+
+/* ---------- 记支出（含公摊） ---------- */
+function expenseForm(p){
+  const e = editingId ? dbData.expenses.find(x=>x.id===editingId) : null;
+  const types = LANG==='en'
+    ? ['Survey / design fee','Road repair','Excavator diesel','Excavator repair','Crop compensation','Toll fee','Permit fee','Other']
+    : ['伐区设计服务费','山路修整','挖机柴油','挖机维修 / 保养','青苗补偿','过路费','办证费','其他'];
+  const typeValue = e ? (e.type||types[types.length-1]) : types[1];
+  const allocOn = !!(e && e.alloc && e.alloc.length);
+  const plots = dbData.plots.map(pl=>'<label style="display:flex;gap:6px;align-items:center;font-size:var(--sm)"><input type="checkbox" class="allocPlot" value="'+pl.id+'" '+(allocOn&&e.alloc.some(a=>a.plotId===pl.id)?'checked':'')+'>'+esc(pl.name)+'</label>').join('');
+  return '<h2>'+(e?t('editExpense'):t('addExpenseTitle'))+'</h2>'+
+    '<div class="notice">'+t('belongsTo',{name:esc(p.name)})+'</div>'+
+    '<form class="form" id="expenseForm">'+
+      '<div class="row">'+
+        '<div class="field"><label>'+t('date')+'</label><input type="date" name="date" value="'+esc(e?e.date||'':today())+'"></div>'+
+        '<div class="field"><label>'+t('amount')+' *</label><input type="number" min="0" step="0.01" name="amount" value="'+(e?esc(e.amount):'')+'" required placeholder="¥"></div>'+
+      '</div>'+
+      '<div class="field"><label>'+t('whereSpend')+' *</label><input name="type" list="typeList" value="'+esc(typeValue)+'" required>'+
+        '<datalist id="typeList">'+types.map(x=>'<option value="'+esc(x)+'"></option>').join('')+'</datalist></div>'+
+      '<div class="field"><label>'+t('noteOptional')+'</label><input name="note" value="'+esc(e?e.note||'':'')+'"></div>'+
+      '<div class="field"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="allocToggle" '+(allocOn?'checked':'')+'> '+t('allocate')+'</label>'+
+        '<div class="hint">'+t('allocateHint')+'</div></div>'+
+      '<div id="allocBox" style="display:'+(allocOn?'block':'none')+'">'+
+        '<div class="field"><label>'+t('pickPlots')+'</label><div class="list" style="margin-top:4px">'+plots+'</div></div>'+
+        '<div class="field"><label>'+t('allocTo')+'</label><select id="allocMode"><option value="equal">'+t('allocEqual')+'</option><option value="custom">'+t('allocCustom')+'</option></select></div>'+
+        '<div id="allocCustomBox"></div>'+
+        '<div class="notice" id="allocSummary"></div>'+
+      '</div>'+
+      '<div class="actions">'+
+        '<button class="btn">'+(e?t('saveEdit'):t('save'))+'</button>'+
+        '<button type="button" class="btn ghost" onclick="view=\'home\';render()">'+t('back')+'</button>'+
+      '</div>'+
+    '</form>'+
+    '<h3>'+t('allExpense')+'</h3>'+
+    (dbData.expenses.filter(x=>x.plotId===p.id || (x.alloc||[]).some(a=>a.plotId===p.id)).slice().reverse().map(x=>
+      '<div class="item"><div><div class="item-title">'+esc(x.type||'')+(x.alloc&&x.alloc.length?' <span class="badge">'+t('allocate')+'</span>':'')+'</div><div class="item-sub">'+esc(x.date||'')+' '+esc(x.note||'')+'</div></div><div class="item-actions"><strong class="num">'+money(expenseTo(x,p.id))+'</strong><button class="icon-btn" onclick="editRec(\'expenses\',\''+x.id+'\',\'expense\')">'+t('edit')+'</button><button class="icon-btn" onclick="delRec(\'expenses\',\''+x.id+'\')">'+t('del')+'</button></div></div>').join('')||'<div class="empty">'+t('noExpense')+'</div>');
+}
+
+/* ---------- 工资 / 运输 / 机械 ---------- */
+function workForm(p){
+  const arr = ['trucks','workers','other'].includes(editingKind) ? editingKind : (workKind==='truck'?'trucks':'workers');
+  const e = editingId ? dbData[arr].find(x=>x.id===editingId) : null;
+  const isEdit = !!e;
+  const def = arr==='trucks'?t('addFreight'):arr==='other'?t('catOther'):t('addWage');
+  const kindValue = e ? (e.kind || def) : def;
+  const catValue = classifyName(kindValue);
+  const seg = (cat,label)=>'<button type="button" class="seg-btn '+(catValue===cat?'on':'')+'" data-cat="'+cat+'" onclick="setKindCat(\''+cat+'\',this)">'+label+'</button>';
+  const kindList = LANG==='en'
+    ? ['Wages','Truck freight','Machinery','Other','Cutting','Loading','Excavator rent','Handling','Power line']
+    : ['工人工资','卡车运费','机械费','其他费用','砍伐','装车','挖机租金','装卸搬运','电网安装'];
+  const personField = arr==='trucks' ? t('personTruck') : t('personWorker');
+  const persons = arr==='trucks' ? dbData.trucks : dbData.workers;
+  return '<h2>'+(isEdit?t('editWage'):t('wageTitle'))+'</h2>'+
+    '<form class="form" id="workForm">'+
+      '<div class="field"><label>'+t('payName')+'</label><input name="kind" list="kindList" value="'+esc(kindValue)+'" oninput="autoClassify(this.value)">'+
+        '<datalist id="kindList">'+kindList.map(k=>'<option value="'+esc(k)+'"></option>').join('')+'</datalist>'+
+        '<div class="hint">'+t('payNameHint')+'</div></div>'+
+      '<div class="field"><label>'+t('classifyTo')+'</label>'+
+        '<div class="seg" id="kindSeg">'+seg('workers',t('catWage'))+seg('trucks',t('catFreight'))+seg('other',t('catOther'))+'</div>'+
+        '<input type="hidden" name="cat" id="kindCat" value="'+catValue+'">'+
+        '<div class="hint">'+t('catAuto')+'</div></div>'+
+      '<div class="row">'+
+        '<div class="field"><label>'+personField+' *</label><input name="person" list="personList" value="'+esc(e?e.person||'':'')+'" placeholder="'+esc(t('personPlaceholder'))+'" required>'+
+          '<datalist id="personList">'+[...new Set(persons.filter(x=>x.plotId===p.id).map(x=>x.person).filter(Boolean))].map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist></div>'+
+        '<div class="field"><label>'+t('date')+'</label><input type="date" name="date" value="'+esc(e?e.date||'':today())+'"></div>'+
+      '</div>'+
+      '<div class="row">'+
+        '<div class="field"><label>'+t('role')+'</label><input name="role" value="'+esc(e?e.role||'':'')+'" placeholder="'+esc(t('rolePlaceholder'))+'"></div>'+
+        '<div class="field"><label>'+t('plate')+'</label><input name="plate" value="'+esc(e?e.plate||'':'')+'" placeholder="'+esc(t('plateOptional'))+'"></div>'+
+      '</div>'+
+      '<div class="row">'+
+        '<div class="field"><label>'+t('amountDue')+' *</label><input type="number" min="0" step="0.01" name="amount" value="'+(e?esc(e.amount):'')+'" required placeholder="¥"></div>'+
+        '<div class="field"><label>'+t('amountPaid')+'</label><input type="number" min="0" step="0.01" name="paid" value="'+(e?esc(e.paid):'0')+'"></div>'+
+      '</div>'+
+      '<div class="row">'+
+        '<div class="field"><label>'+t('payMode')+'</label><select name="payMode">'+
+          (LANG==='en'
+            ? '<option>Per day</option><option>Per month</option><option>Per trip</option><option>Lump sum</option><option>Other</option>'
+            : '<option>按天</option><option>按月</option><option>按车次</option><option>包工</option><option>其他</option>')+
+        '</select></div>'+
+      '</div>'+
+      '<div class="field"><label>'+t('noteOptional')+'</label><input name="note" value="'+esc(e?e.note||'':'')+'"></div>'+
+      '<div class="actions"><button class="btn">'+(isEdit?t('saveEdit'):t('save'))+'</button>'+
+        '<button type="button" class="btn ghost" onclick="view=\'home\';render()">'+t('back')+'</button></div>'+
+    '</form>'+
+    '<h3>'+t('allRecords')+'</h3>'+
+    (allWorkRows(p).map(x=>{
+      const owe = Number(x.amount||0)-Number(x.paid||0);
+      const nm = x.kind || (x.arr==='workers'?t('catWage'):x.arr==='trucks'?t('catFreight'):t('catOther'));
+      return '<div class="item '+(owe>0?'owner-due':'')+'"><div><div class="item-title">'+esc(x.person)+' · '+esc(nm)+'</div>'+
+        '<div class="item-sub">'+esc(x.date||'')+' · '+t('amountDue')+' '+money(x.amount)+' · '+t('amountPaid')+' '+money(x.paid)+(x.role?' · '+esc(x.role):'')+'</div></div>'+
+        '<div class="item-actions"><strong class="num">'+(owe>0?t('owe')+' '+money(owe):t('settled'))+'</strong>'+
+        '<button class="icon-btn" onclick="editRec(\''+x.arr+'\',\''+x.id+'\',\'work\')">'+t('edit')+'</button>'+
+        '<button class="icon-btn" onclick="delRec(\''+x.arr+'\',\''+x.id+'\')">'+t('del')+'</button></div></div>';
+    }).join('')||'<div class="empty">'+t('noRecords')+'</div>');
+}
+function allWorkRows(p){
+  return [...dbData.workers.filter(x=>x.plotId===p.id).map(x=>Object.assign({},x,{arr:'workers'})),
+          ...dbData.trucks.filter(x=>x.plotId===p.id).map(x=>Object.assign({},x,{arr:'trucks'})),
+          ...dbData.other.filter(x=>x.plotId===p.id).map(x=>Object.assign({},x,{arr:'other'}))]
+    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+}
+function classifyName(v){
+  v=(v||'').trim(); if(!v) return 'workers';
+  const wage = LANG==='en'?'Wages':'工人工资', freight = LANG==='en'?'Truck freight':'卡车运费', other = LANG==='en'?'Machinery':'机械费';
+  if(v===wage||v==='工资'||v==='Wages') return 'workers';
+  if(v===freight||v==='运费'||v==='Freight') return 'trucks';
+  if(v===other||v==='其他费用'||v==='机械'||v==='Machinery') return 'other';
+  if(/车|运费|运输|拉木|拖车|货车|拉货|freight|truck|haul/i.test(v)) return 'trucks';
+  if(/机械|挖机|油锯|电锯|租金|台班|machin|excavator/i.test(v)) return 'other';
+  if(/工资|工钱|人工|砍|搬|点工|装卸|装车|清山|抚育|wage|labour|labor|cut|load/i.test(v)) return 'workers';
+  return 'other';
+}
+function setKindCat(cat, btn){
+  const h=document.getElementById('kindCat'); if(h) h.value=cat;
+  document.querySelectorAll('#kindSeg .seg-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+}
+function autoClassify(v){
+  const cat=classifyName(v);
+  setKindCat(cat, document.querySelector('#kindSeg .seg-btn[data-cat="'+cat+'"]'));
+}
+
+/* ---------- 记收入 ---------- */
+function saleForm(p){
+  const e = editingId ? dbData.sales.find(x=>x.id===editingId) : null;
+  const isEdit = !!e;
+  const stype = e ? (e.stype||'卖木') : (LANG==='en'?'Timber sale':'卖木');
+  const refund = isRefundType(stype);
+  const hide = refund ? 'display:none' : '';
+  const types = LANG==='en'?['Timber sale','Deposit refund','Subsidy','Other income']:['卖木','定金退还','补贴','其他收入'];
+  return '<h2>'+(isEdit?t('editIncome'):t('incomeTitle'))+'</h2>'+
+    '<form class="form" id="saleForm">'+
+      '<div class="field"><label>'+t('incomeWhat')+' *</label><input name="stype" list="stypeList" value="'+esc(stype)+'" oninput="saleTypeChange(this.value)">'+
+        '<datalist id="stypeList">'+types.map(x=>'<option value="'+esc(x)+'"></option>').join('')+'</datalist>'+
+        '<div class="hint">'+t('incomeWhatHint')+'</div></div>'+
+      '<div class="row">'+
+        '<div class="field"><label>'+t('date')+'</label><input type="date" name="date" value="'+esc(e?e.date||'':today())+'"></div>'+
+        '<div class="field" id="salePlateField" style="'+hide+'"><label>'+t('trailerPlate')+'</label><input name="plate" value="'+esc(e?e.plate||'':'')+'" placeholder="'+esc(t('plateOptional'))+'"></div>'+
+      '</div>'+
+      '<div class="field" id="saleBuyerField" style="'+hide+'"><label>'+t('buyer')+'</label><input name="buyer" value="'+esc(e?e.buyer||'':'')+'" placeholder="'+esc(t('buyerPlaceholder'))+'"></div>'+
+      '<div class="row" id="saleVolField" style="'+hide+'">'+
+        '<div class="field"><label>'+t('volume')+'</label><input type="number" min="0" step="0.01" name="volume" id="saleVolume" value="'+esc(e?e.volume:'')+'" placeholder="'+esc(t('volumePlaceholder'))+'" oninput="autoTotal()"></div>'+
+        '<div class="field"><label>'+t('unitPrice')+'</label><input type="number" min="0" step="0.01" name="unit" id="saleUnit" value="'+esc(e?e.unit:'')+'" placeholder="'+esc(t('unitPlaceholder'))+'" oninput="autoTotal()"></div>'+
+      '</div>'+
+      '<div class="notice" id="saleCalcTip" style="'+hide+'">'+t('calcTip')+'</div>'+
+      '<div class="row">'+
+        '<div class="field"><label id="saleTotalLabel">'+(refund?t('totalAmount'):t('totalDue'))+' *</label><input type="number" min="0" step="0.01" name="total" id="saleTotal" value="'+(e?esc(e.total):'')+'" required placeholder="¥"></div>'+
+        '<div class="field" id="saleRecvField" style="'+hide+'"><label>'+t('received')+'</label><input type="number" min="0" step="0.01" name="received" value="'+(e?esc(e.received):'0')+'"></div>'+
+      '</div>'+
+      '<div class="field"><label>'+t('noteOptional')+'</label><input name="note" value="'+esc(e?e.note||'':'')+'"></div>'+
+      '<div class="actions"><button class="btn">'+(isEdit?t('saveEdit'):t('save'))+'</button>'+
+        '<button type="button" class="btn ghost" onclick="view=\'home\';render()">'+t('back')+'</button></div>'+
+    '</form>'+
+    '<h3>'+t('incomeRecords')+'</h3>'+
+    (dbData.sales.filter(x=>x.plotId===p.id).slice().reverse().map(x=>{
+      const d=Number(x.total||0)-Number(x.received||0);
+      const ty=x.stype||(LANG==='en'?'Timber sale':'卖木');
+      const isWood=!isRefundType(ty);
+      return '<div class="item '+(isWood&&d>0?'owner-due':'')+'"><div><div class="item-title">'+esc(ty)+(x.buyer?' · '+esc(x.buyer):'')+'</div>'+
+        '<div class="item-sub">'+esc(x.date||'')+(isWood?' · '+t('receivable')+' '+money(x.total):'')+'</div></div>'+
+        '<div class="item-actions"><strong class="num">'+(isWood?(d>0?t('owe')+' '+money(d):t('settled')):money(x.total))+'</strong>'+
+        '<button class="icon-btn" onclick="editRec(\'sales\',\''+x.id+'\',\'sale\')">'+t('edit')+'</button>'+
+        '<button class="icon-btn" onclick="delRec(\'sales\',\''+x.id+'\')">'+t('del')+'</button></div></div>';
+    }).join('')||'<div class="empty">'+t('noIncome')+'</div>');
+}
+function isRefundType(v){
+  v=(v||'').trim();
+  if(v==='卖木'||v==='Timber sale') return false;
+  return /退|补贴|补助|返|补偿|退还|refund|subsid|rebate|compensat/i.test(v);
+}
+function saleTypeChange(v){
+  const wood = !isRefundType(v);
+  ['salePlateField','saleBuyerField','saleVolField','saleCalcTip','saleRecvField'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display = wood?'':'none';
+  });
+  const lbl=document.getElementById('saleTotalLabel');
+  if(lbl) lbl.textContent = wood?t('totalDue'):t('totalAmount');
+  const tip=document.getElementById('saleCalcTip');
+}
+function autoTotal(){
+  const v=Number(($('#saleVolume')||{}).value), u=Number(($('#saleUnit')||{}).value), tt=$('#saleTotal');
+  if(v>0 && u>0 && tt) tt.value=(v*u).toFixed(2);
+}
+
+/* ---------- 资料 ---------- */
+function mediaView(p){
+  return '<h2>'+t('mediaTitle')+'</h2>'+
+    '<div class="notice">'+t('mediaNote')+'</div>'+
+    '<div class="actions"><button class="btn" onclick="openMedia(\''+p.id+'\')">+ '+t('addMedia')+'</button></div>'+
+    '<div class="media-grid" style="margin-top:14px">'+
+    (dbData.media.filter(x=>x.plotId===p.id).map(x=>'<div class="media"><div id="m-'+x.id+'" style="cursor:pointer" onclick="viewMedia(\''+x.id+'\')" title="'+esc(t('view'))+'"></div><small>'+esc(x.note||t('noNote'))+'<br>'+esc(x.date||'')+'</small><div class="item-actions" style="padding:2px 6px 8px"><button class="icon-btn" onclick="viewMedia(\''+x.id+'\')">'+t('view')+'</button><button class="icon-btn" onclick="delMedia(\''+x.id+'\')">'+t('del')+'</button></div></div>').join('')||'<div class="empty">'+t('noMedia')+'</div>')+
+    '</div>';
+}
+
+/* ---------- 记录增删改 ---------- */
+function editRec(kind, rid, vname){ editingKind=kind; editingId=rid; view=vname; render(); }
+function delRec(kind, rid){
+  if(!confirm(t('confirmDelRec'))) return;
+  dbData[kind]=dbData[kind].filter(x=>x.id!==rid);
+  save();
+}
+function delMedia(mid){
+  if(!confirm(t('confirmDelMedia'))) return;
+  if(idb) idb.transaction('files','readwrite').objectStore('files').delete(mid);
+  dbData.media=dbData.media.filter(x=>x.id!==mid);
+  save();
+}
+function removePlot(pid){
+  if(!confirm(t('confirmDelPlot'))) return;
+  dbData.plots=dbData.plots.filter(x=>x.id!==pid);
+  ['expenses','workers','trucks','other','sales'].forEach(k=>dbData[k]=dbData[k].filter(x=>x.plotId!==pid));
+  dbData.expenses.forEach(x=>{ if(x.alloc) x.alloc=x.alloc.filter(a=>a.plotId!==pid); });
+  dbData.expenses=dbData.expenses.filter(x=>!(x.alloc && x.alloc.length===0));
+  const mediaIds=dbData.media.filter(x=>x.plotId===pid).map(x=>x.id);
+  dbData.media=dbData.media.filter(x=>x.plotId!==pid);
+  if(idb && mediaIds.length){ const tx=idb.transaction('files','readwrite'); mediaIds.forEach(m=>tx.objectStore('files').delete(m)); }
+  selectedId = dbData.plots[0]?dbData.plots[0].id:null;
+  save();
+}
+function editPlot(pid){
+  const p=dbData.plots.find(x=>x.id===pid); if(!p) return;
+  const f=document.getElementById('plotForm'); if(!f) return;
+  f.elements.name.value=p.name||''; f.elements.location.value=p.location||'';
+  f.elements.area.value=p.area||''; f.elements.date.value=p.date||'';
+  f.elements.term.value=p.term||''; f.elements.expire.value=p.expire||'';
+  f.elements.status.value=p.status||'待开发';
+  f.elements.purchase.value=p.purchase||''; f.elements.deposit.value=p.deposit||'';
+  f.elements.paidPrincipal.value=p.paidPrincipal||''; f.elements.purchaseNote.value=p.purchaseNote||'';
+  f.elements.owner.value=p.owner||''; f.elements.contractNo.value=p.contractNo||'';
+  f.elements.note.value=p.note||'';
+  editingPlotId=pid;
+  document.getElementById('plotDialogTitle').textContent=t('editPlot');
+  openModal('plotDialog');
+}
+
+/* ---------- IndexedDB ---------- */
+function openDb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('shanmu-media',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('files',{keyPath:'id'});
+    r.onsuccess=()=>{ idb=r.result; res(idb); };
+    r.onerror=()=>rej(r.error);
+  });
+}
+function idbGet(k){ return new Promise((res,rej)=>{ const r=idb.transaction('files').objectStore('files').get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbPut(rec){ return new Promise((res,rej)=>{ const r=idb.transaction('files','readwrite').objectStore('files').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
+function idbDel(k){ const r=idb.transaction('files','readwrite').objectStore('files').delete(k); return new Promise((res)=>{ r.onsuccess=()=>res(); }); }
+function openMedia(plotId){ document.getElementById('mediaForm').dataset.plotId=plotId; openModal('mediaDialog'); }
+
+function fileIcon(name){
+  const ext=(String(name).split('.').pop()||'').toLowerCase();
+  if(ext==='pdf') return '📕';
+  if(['doc','docx','txt','rtf'].includes(ext)) return '📄';
+  if(['xls','xlsx','csv'].includes(ext)) return '📊';
+  if(['ppt','pptx'].includes(ext)) return '📽️';
+  if(['zip','rar','7z'].includes(ext)) return '🗜️';
+  if(['mp4','mov','avi','mkv','mp3'].includes(ext)) return '🎬';
+  if(['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) return '🖼️';
+  return '📎';
+}
+function fileCardHTML(name,size){
+  return '<div class="file-card"><div class="file-ico">'+fileIcon(name)+'</div><div class="file-name">'+esc(name)+'</div><div class="file-tip">'+(size?humanSize(size):'file')+'</div></div>';
+}
+function trackUrl(u){ objectUrls.add(u); return u; }
+function revokeUrls(){ objectUrls.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} }); objectUrls.clear(); }
+
+async function loadMedia(){
+  if(!idb){ try{ await openDb(); }catch(e){ return; } }
+  revokeUrls();
+  for(const x of dbData.media){
+    const r=idb.transaction('files').objectStore('files').get(x.id);
+    r.onsuccess=()=>{
+      if(!r.result) return;
+      const el=document.querySelector('#m-'+x.id); if(!el) return;
+      const url=trackUrl(URL.createObjectURL(r.result.data));
+      const ty=r.result.type||'';
+      if(ty.startsWith('video')) el.innerHTML='<video muted preload="metadata" src="'+url+'"></video>';
+      else if(ty.startsWith('image')) el.innerHTML='<img src="'+url+'" alt="site file">';
+      else el.innerHTML=fileCardHTML(x.name,x.size);
+    };
+  }
+}
+
+/* ---------- 查看大图 / 视频 / 文件 ---------- */
+let viewerUrl=null, viewerName='';
+async function viewMedia(mid){
+  if(!idb){ try{ await openDb(); }catch(e){} }
+  let row=null; try{ row=await idbGet(mid); }catch(e){ row=null; }
+  if(!row || !row.data){ alert(t('errNotFound')); return; }
+  if(viewerUrl){ try{ URL.revokeObjectURL(viewerUrl); }catch(e){} viewerUrl=null; }
+  viewerUrl=URL.createObjectURL(row.data);
+  const m=dbData.media.find(x=>x.id===mid);
+  viewerName=(m&&m.name)||'file';
+  const ty=row.data.type||'';
+  document.getElementById('mediaViewerTitle').textContent=(m&&m.note)||viewerName;
+  let html;
+  if(ty.startsWith('video')) html='<video controls autoplay playsinline src="'+viewerUrl+'" style="display:block;width:100%;max-height:70vh;border-radius:10px;background:#000"></video>';
+  else if(ty.startsWith('image')) html='<img src="'+viewerUrl+'" alt="site file" style="display:block;width:100%;max-height:70vh;object-fit:contain;border-radius:10px;background:#000">';
+  else html='<div style="text-align:center;padding:34px 12px"><div style="font-size:60px;line-height:1">'+fileIcon(viewerName)+'</div><div style="margin:16px 0 4px;font-weight:700;word-break:break-all">'+esc(viewerName)+'</div><div style="color:var(--muted);font-size:13px;margin-bottom:20px">'+(m&&m.size?humanSize(m.size):'')+'</div><div class="actions" style="justify-content:center"><button class="btn" onclick="openFile()">'+t('view')+'</button><button class="btn ghost" onclick="downloadFile()">'+t('saveLocal')+'</button></div></div>';
+  document.getElementById('mediaViewerBody').innerHTML=html;
+  openModal('mediaViewer');
+}
+function openFile(){ if(viewerUrl) window.open(viewerUrl,'_blank'); }
+function downloadFile(){ if(viewerUrl){ const a=document.createElement('a'); a.href=viewerUrl; a.download=viewerName||'file'; a.click(); } }
+function closeViewer(){
+  closeModal('mediaViewer');
+  document.getElementById('mediaViewerBody').innerHTML='';
+  if(viewerUrl){ try{ URL.revokeObjectURL(viewerUrl); }catch(e){} viewerUrl=null; }
+  viewerName='';
+}
+
+/* ---------- 备份 / 导入 ---------- */
+function blobToDataUrl(blob){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob); }); }
+function dataUrlToBlob(u){ return fetch(u).then(r=>r.blob()); }
+function download(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} },1500); }
+function checksum(str){
+  let h1=0xdeadbeef, h2=0x41c6ce57;
+  for(let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=Math.imul(h1^ch,2654435761); h2=Math.imul(h2^ch,1597334677); }
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return ((h2>>>0)*4294967296+(h1>>>0)).toString(16);
+}
+function sanitizeForExport(){
+  return { plots:dbData.plots, expenses:dbData.expenses, workers:dbData.workers, trucks:dbData.trucks, other:dbData.other, sales:dbData.sales, media:dbData.media, profile:dbData.profile };
+}
+
+async function exportBackup(){
+  const media=[];
+  for(const m of dbData.media){
+    const rec=Object.assign({},m);
+    try{ if(idb){ const row=await idbGet(m.id); if(row&&row.data){ rec.dataUrl=await blobToDataUrl(row.data); rec.type=row.data.type; } } }catch(e){}
+    media.push(rec);
+  }
+  const payload={ plots:dbData.plots, expenses:dbData.expenses, workers:dbData.workers, trucks:dbData.trucks, other:dbData.other, sales:dbData.sales, media, profile:dbData.profile||{} };
+  const sum=checksum(JSON.stringify(sanitizeForExport()));
+  const out={ app:'shanmu-ledger', version:2, exportedAt:stamp(), checksum:sum, data:payload };
+  download(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}), '杉木账本备份-'+today()+'.json');
+  safeSet('shanmu-last-backup', String(Date.now()));
+  const b=document.getElementById('backupBanner'); if(b) b.hidden=true;
+  alert(t('backupDone'));
+}
+function csvCell(v){ v=String(v==null?'':v); return /[",\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function exportCsv(){
+  const p=plot();
+  if(!p){ alert(t('errPickPlot')); return; }
+  const s=sums(p), pf=dbData.profile||{};
+  const rows=[];
+  rows.push([t('profTitle'), pf.name||'', pf.phone||'', pf.address||'']);
+  rows.push([t('plotName'), p.name||'', t('location'), p.location||'', t('area'), (p.area||0)+(t('mu'))]);
+  rows.push([t('purchaseTotal'), p.purchase||0, t('depositPaid'), p.deposit||0, t('contractNo'), p.contractNo||'']);
+  rows.push([]);
+  rows.push([t('whereSpend'), t('date'), t('note'), t('amount'), t('received'), t('payMode')]);
+  dbData.expenses.forEach(x=>{ if(x.plotId===p.id||(x.alloc||[]).some(a=>a.plotId===p.id)) rows.push([t('addExpense'), x.date||'', (x.type||'')+(x.note?(' '+x.note):''), expenseTo(x,p.id), '', '']); });
+  allWorkRows(p).forEach(x=>rows.push([x.kind||'', x.date||'', (x.person||'')+(x.role?(' '+x.role):''), x.amount||0, x.paid||0, x.payMode||'']));
+  dbData.sales.filter(x=>x.plotId===p.id).forEach(x=>rows.push([x.stype||'卖木', x.date||'', x.buyer||'', x.total||0, x.received||0, '']));
+  rows.push([]);
+  rows.push([t('investDetail')]);
+  rows.push([t('invested'), s.paidCost]); rows.push([t('receivable'), s.income]);
+  rows.push([t('cashIn'), s.received]); rows.push([t('pending'), s.due]);
+  rows.push([t('bookProfit'), s.profit]); rows.push([t('cashProfit'), s.cashProfit]);
+  const csv=rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+  download(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}), (p.name||'ledger')+'-'+today()+'.csv');
+}
+function printLedger(){ if(!plot()){ alert(t('errPickPlot')); return; } window.print(); }
+
+document.getElementById('viewerCloseBtn').addEventListener('click',closeViewer);
+
+/* ---------- 导入 ---------- */
+async function importBackup(e){
+  const file=e.target.files[0]; if(!file) return;
+  e.target.value='';
+  let d;
+  try{ d=JSON.parse(await file.text()); }
+  catch(err){ alert(t('importInvalid')); return; }
+  const payload=d && d.data ? d.data : d;
+  const need=['plots','expenses','workers','trucks','other','sales','media'];
+  if(!payload || need.some(k=>!Array.isArray(payload[k]))){ alert(t('importIncomplete')); return; }
+  pendingImport={ payload, checksum:d.checksum||null };
+  openModal('importDialog');
+}
+function computeImportChecksum(payload){
+  return checksum(JSON.stringify({ plots:payload.plots, expenses:payload.expenses, workers:payload.workers, trucks:payload.trucks, other:payload.other, sales:payload.sales, media:payload.media, profile:payload.profile||{} }));
+}
+async function applyImport(mode){
+  if(!pendingImport) return;
+  const { payload, checksum:sum }=pendingImport;
+  closeModal('importDialog');
+  try{ download(new Blob([JSON.stringify(sanitizeForExport(),null,2)],{type:'application/json'}), '导入前-文字备份-'+today()+'.json'); }catch(err){}
+  if(sum){
+    const local=computeImportChecksum(payload);
+    if(local!==sum){ alert(t('importChecksumBad')); }
+  }
+  if(mode==='merge'){
+    const byId=(arr)=>new Map(arr.map(x=>[x.id,x]));
+    const mergeArr=(cur,inc)=>{ const m=byId(cur); inc.forEach(x=>m.set(x.id,x)); return [...m.values()]; };
+    dbData.plots=mergeArr(dbData.plots,payload.plots);
+    dbData.expenses=mergeArr(dbData.expenses,payload.expenses);
+    dbData.workers=mergeArr(dbData.workers,payload.workers);
+    dbData.trucks=mergeArr(dbData.trucks,payload.trucks);
+    dbData.other=mergeArr(dbData.other,payload.other);
+    dbData.sales=mergeArr(dbData.sales,payload.sales);
+    dbData.media=mergeArr(dbData.media,payload.media);
+    if(payload.profile && Object.keys(payload.profile).length) dbData.profile=payload.profile;
+  }else{
+    dbData={ plots:payload.plots, expenses:payload.expenses, workers:payload.workers, trucks:payload.trucks, other:payload.other, sales:payload.sales, media:payload.media, profile:payload.profile||{} };
+  }
+  selectedId=dbData.plots[0]?dbData.plots[0].id:null;
+  pendingImport=null;
+  save();
+  await restoreMedia(payload.media||[]);
+  alert(t('importOk'));
+}
+async function restoreMedia(list){
+  if(!idb){ try{ await openDb(); }catch(e){ return; } }
+  for(const m of list){
+    if(!m.dataUrl) continue;
+    try{ const blob=await dataUrlToBlob(m.dataUrl); await idbPut({id:m.id,data:blob}); }catch(e){}
+  }
+  loadMedia();
+}
+
+/* ---------- 存储占用显示 ---------- */
+async function updateStorageNotice(){
+  const el=document.getElementById('storageNotice');
+  const fill=document.getElementById('storageFill');
+  const hint=document.getElementById('storageHint');
+  if(!el) return;
+  try{
+    if(navigator.storage && navigator.storage.estimate){
+      const est=await navigator.storage.estimate();
+      const used=est.usage||0, quota=est.quota||0;
+      const pct=quota>0?Math.min(100,Math.round(used/quota*100)):0;
+      el.textContent=t('storageUsed',{used:humanSize(used)||'0',quota:humanSize(quota)||'—'})+(pct>=80?' ⚠️':'');
+      fill.style.width=pct+'%';
+      fill.classList.toggle('high',pct>=80);
+      hint.textContent=pct>=80?t('storageLow'):t('backupChecksum');
+    }else{
+      el.textContent=t('storageWarn');
+      hint.textContent=t('backupChecksum');
+    }
+  }catch(e){ el.textContent=t('storageWarn'); }
+}
+
+/* ---------- 设置面板 ---------- */
+function setAccent(hex){
+  document.documentElement.style.setProperty('--brand', hex);
+  document.documentElement.style.setProperty('--brand-deep', darken(hex,0.35));
+  safeSet('shanmu-accent', hex);
+}
+function darken(hex,f){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.round(r*(1-f)); g=Math.round(g*(1-f)); b=Math.round(b*(1-f));
+  return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---------- 事件绑定 ---------- */
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('aboutBtn').onclick=()=>openModal('aboutDialog');
+  document.getElementById('moreBtn').onclick=()=>{ openModal('moreDialog'); updateStorageNotice(); };
+  applyI18n();
+
+  // 备份提醒
+  const last=Number(safeGet('shanmu-last-backup')||0);
+  const days=last?Math.floor((Date.now()-last)/86400000):999;
+  if(!last || days>=7){
+    const b=document.getElementById('backupBanner');
+    if(b){ b.hidden=false; document.getElementById('backupBannerText').textContent = last?t('backupBannerDays',{d:days}):t('backupBannerNever'); }
+  }
+  document.getElementById('bannerBackupBtn').onclick=exportBackup;
+  document.getElementById('bannerDismissBtn').onclick=()=>{ document.getElementById('backupBanner').hidden=true; };
+
+  if(safeGet('shanmu-theme')==='dark') document.body.classList.add('dark');
+  const acc=safeGet('shanmu-accent'); if(acc) setAccent(acc);
+
+  // 语言
+  const langSeg=document.getElementById('langSeg');
+  function paintLang(){ langSeg.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('on', b.getAttribute('data-lang')===LANG)); }
+  langSeg.querySelectorAll('.seg-btn').forEach(b=>b.onclick=()=>{ setLang(b.getAttribute('data-lang')); paintLang(); });
+  paintLang();
+
+  document.getElementById('themeBtn').onclick=()=>{ document.body.classList.toggle('dark'); safeSet('shanmu-theme', document.body.classList.contains('dark')?'dark':'light'); };
+  document.getElementById('paletteBtn').onclick=()=>document.getElementById('accentPicker').click();
+  document.getElementById('accentPicker').oninput=e=>setAccent(e.target.value);
+  document.getElementById('exportBtn').onclick=exportBackup;
+  document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange=importBackup;
+  document.getElementById('printBtn').onclick=()=>{ closeModal('moreDialog'); printLedger(); };
+  document.getElementById('csvBtn').onclick=()=>{ closeModal('moreDialog'); exportCsv(); };
+  document.getElementById('profileBtn').onclick=()=>{ closeModal('moreDialog'); view='profile'; render(); };
+  document.getElementById('importMergeBtn').onclick=()=>applyImport('merge');
+  document.getElementById('importOverwriteBtn').onclick=()=>applyImport('overwrite');
+
+  // 新建地块
+  document.getElementById('addPlotBtn').onclick=()=>{ editingPlotId=null; document.getElementById('plotForm').reset(); document.getElementById('plotDialogTitle').textContent=t('newPlot'); openModal('plotDialog'); };
+
+  // 查账月份
+  document.getElementById('main').addEventListener('change',ev=>{
+    if(ev.target.id==='monthSel'){ accMonth=ev.target.value; render(); }
+  });
+  // 公摊交互
+  document.getElementById('main').addEventListener('input',ev=>{
+    if(ev.target.id==='allocToggle'){ document.getElementById('allocBox').style.display=ev.target.checked?'block':'none'; renderAlloc(); }
+    if(ev.target.classList && ev.target.classList.contains('allocPlot')) renderAlloc();
+    if(ev.target.id==='saleVolume'||ev.target.id==='saleUnit') autoTotal();
+  });
+  document.getElementById('main').addEventListener('change',ev=>{
+    if(ev.target.id==='allocMode') renderAlloc();
+  });
+
+  // 地块表单
+  document.getElementById('plotForm').onsubmit=e=>{
+    e.preventDefault();
+    const f=Object.fromEntries(new FormData(e.target));
+    f.status=(f.status||'').trim()||'待开发';
+    f.area=Number(f.area||0); f.term=Number(f.term||0);
+    if(!f.expire && f.date && f.term>0){
+      const d=new Date(f.date); if(!isNaN(d)){ d.setFullYear(d.getFullYear()+f.term); f.expire=d.toISOString().slice(0,10); }
+    }
+    if(editingPlotId){
+      const i=dbData.plots.findIndex(x=>x.id===editingPlotId);
+      if(i>-1) dbData.plots[i]=Object.assign({},dbData.plots[i],f);
+      selectedId=editingPlotId; editingPlotId=null;
+    }else{
+      const p=Object.assign({id:id()},f); dbData.plots.push(p); selectedId=p.id;
+    }
+    save(); closeModal('plotDialog'); e.target.reset();
+    document.getElementById('plotDialogTitle').textContent=t('newPlot');
+  };
+
+  // 媒体表单
+  document.getElementById('mediaForm').onsubmit=async e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target), file=fd.get('file');
+    if(!file) return;
+    if(file.size>20*1024*1024 && !confirm(t('errFileSize'))) return;
+    try{ await openDb(); }catch(err){ alert(t('errSaveFile')); return; }
+    const rec={ id:id(), plotId:e.target.dataset.plotId, name:file.name, note:fd.get('note'), date:today(), type:file.type, size:file.size };
+    try{ await idbPut({id:rec.id,data:file}); }
+    catch(err){ alert(t('errSaveFile')); return; }
+    dbData.media.push(rec);
+    save(); closeModal('mediaDialog'); e.target.reset();
+    setTimeout(loadMedia,150);
+  };
+
+  // 主区域表单
+  document.getElementById('main').addEventListener('submit',e=>{
+    if(e.target.id==='profileForm'){
+      e.preventDefault(); dbData.profile=Object.fromEntries(new FormData(e.target)); save(); view='home'; render();
+    }
+    if(e.target.id==='expenseForm'){
+      e.preventDefault();
+      const f=Object.fromEntries(new FormData(e.target));
+      f.type=(f.type||'').trim()||'其他';
+      const allocOn=document.getElementById('allocToggle').checked;
+      if(allocOn){
+        const alloc=collectAlloc(Number(f.amount||0));
+        if(!alloc){ alert(t('splitMustEqual')); return; }
+        f.alloc=alloc; f.plotId=selectedId;
+      }else{ delete f.alloc; f.plotId=selectedId; }
+      if(editingId){
+        const i=dbData.expenses.findIndex(x=>x.id===editingId);
+        if(i>-1) dbData.expenses[i]=Object.assign({},dbData.expenses[i],f);
+        editingId=null; editingKind=null;
+      }else{
+        dbData.expenses.push(Object.assign({id:id()},f));
+      }
+      save(); view='home'; render();
+    }
+    if(e.target.id==='workForm'){
+      e.preventDefault();
+      const f=Object.fromEntries(new FormData(e.target));
+      if(Number(f.paid||0) > Number(f.amount||0)){ alert(t('errPaidOver')); return; }
+      const kind=f.kind||t('addWage');
+      const row={ person:f.person, role:f.role, plate:f.plate, date:f.date, amount:Number(f.amount||0), paid:Number(f.paid||0), payMode:f.payMode||'', quantity:Number(f.quantity||0), note:f.note, kind:kind };
+      let arr;
+      if(classifyName(kind)==='workers') arr='workers';
+      else if(classifyName(kind)==='trucks') arr='trucks';
+      else arr='other';
+      if(editingId){
+        const from=(editingKind && dbData[editingKind] && dbData[editingKind].some(x=>x.id===editingId))?editingKind:null;
+        if(from && from!==arr){ dbData[from]=dbData[from].filter(x=>x.id!==editingId); dbData[arr].push(Object.assign({id:editingId,plotId:selectedId},row)); }
+        else{ const i=dbData[arr].findIndex(x=>x.id===editingId); if(i>-1) dbData[arr][i]=Object.assign({},dbData[arr][i],row); }
+        editingId=null; editingKind=null;
+      }else{
+        dbData[arr].push(Object.assign({id:id(),plotId:selectedId},row));
+      }
+      save(); view='home'; render();
+    }
+    if(e.target.id==='saleForm'){
+      e.preventDefault();
+      const f=Object.fromEntries(new FormData(e.target));
+      const stype=(f.stype||'').trim()||(LANG==='en'?'Timber sale':'卖木');
+      let total=Number(f.total||0), received=Number(f.received||0);
+      if(isRefundType(stype)) received=total;
+      if(received>total){ alert(t('errRecvOver')); return; }
+      const row={ date:f.date, plate:f.plate, buyer:f.buyer, note:f.note, volume:f.volume, unit:f.unit, total:total, received:received, stype:stype };
+      if(editingId){
+        const i=dbData.sales.findIndex(x=>x.id===editingId);
+        if(i>-1) dbData.sales[i]=Object.assign({},dbData.sales[i],row);
+        editingId=null; editingKind=null;
+      }else{
+        dbData.sales.push(Object.assign({id:id(),plotId:selectedId},row));
+      }
+      save(); view='home'; render();
+    }
+  });
+});
+
+/* 公摊：读取勾选与金额 */
+function collectAlloc(total){
+  const box=document.getElementById('allocBox'); if(!box) return null;
+  const checked=[...document.querySelectorAll('.allocPlot:checked')].map(c=>c.value);
+  if(!checked.length) return null;
+  const mode=(document.getElementById('allocMode')||{}).value||'equal';
+  if(mode==='equal'){
+    const each=total/checked.length;
+    return checked.map(pid=>({plotId:pid, amount:Number(each.toFixed(2))}));
+  }
+  const items=[...document.querySelectorAll('.allocAmount')];
+  const alloc=items.map(inp=>({plotId:inp.getAttribute('data-pid'), amount:Number(inp.value||0)}));
+  const sum=alloc.reduce((s,a)=>s+a.amount,0);
+  if(Math.abs(sum-total)>0.01) return null;
+  return alloc;
+}
+function renderAlloc(){
+  const box=document.getElementById('allocBox'); if(!box) return;
+  const mode=(document.getElementById('allocMode')||{}).value||'equal';
+  const custom=document.getElementById('allocCustomBox');
+  const checked=[...document.querySelectorAll('.allocPlot:checked')].map(c=>c.value);
+  const total=Number((document.querySelector('#expenseForm [name=amount]')||{}).value||0);
+  if(mode==='equal'){
+    custom.innerHTML='';
+  }else{
+    custom.innerHTML='<div class="field"><label>'+t('allocTo')+'</label>'+
+      checked.map(pid=>{ const p=dbData.plots.find(x=>x.id===pid); return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="flex:1">'+esc(p?p.name:'')+'</span><input class="allocAmount" data-pid="'+pid+'" type="number" min="0" step="0.01" style="width:120px" value="0"></div>'; }).join('')+'</div>';
+  }
+  const sumEl=document.getElementById('allocSummary');
+  if(sumEl){
+    const each = checked.length? (total/checked.length).toFixed(2):'0.00';
+    sumEl.textContent = t('splitTotal')+'：'+money(total)+' · '+(mode==='equal'?(t('allocEqual')+' '+money(total/ (checked.length||1))):t('allocCustom'));
+  }
+}
+
+/* ---------- 启动 ---------- */
+render();
+openDb().then(loadMedia).catch(()=>{});
+</script>
+<script>
+/* 背景漂浮粒子（可关，尊重系统“减少动态”设置） */
+(function(){
+  const c=document.getElementById('ambient');
+  if(!c) return;
+  const x=c.getContext('2d');
+  let w,h,pts=[];
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  function resize(){
+    w=c.width=innerWidth*devicePixelRatio; h=c.height=innerHeight*devicePixelRatio;
+    x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    pts=Array.from({length:36},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*2.4+1.2,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.14}));
+  }
+  function draw(){
+    x.clearRect(0,0,innerWidth,innerHeight);
+    const color=getComputedStyle(document.documentElement).getPropertyValue('--brand')||'#16634c';
+    x.fillStyle=color.trim()+'88';
+    for(const p of pts){
+      x.beginPath(); x.arc(p.x,p.y,p.r,0,Math.PI*2); x.fill();
+      if(!reduced.matches){ p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>innerWidth)p.vx*=-1; if(p.y<0||p.y>innerHeight)p.vy*=-1; }
+    }
+    if(!reduced.matches) requestAnimationFrame(draw);
+  }
+  addEventListener('resize',resize); resize(); draw();
+})();
+</script>
+</body></html>
